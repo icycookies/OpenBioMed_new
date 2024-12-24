@@ -1,0 +1,62 @@
+from typing import Dict, List
+from typing_extensions import Any
+
+import torch
+from transformers import T5Tokenizer, T5ForConditionalGeneration, DataCollatorWithPadding
+from transformers.modeling_outputs import BaseModelOutput
+
+from open_biomed.data import Molecule, Text
+from open_biomed.models.task_models import TextBasedMoleculeEditingModel
+from open_biomed.utils.config import Config
+from open_biomed.utils.featurizer import MoleculeTransformersFeaturizer, TextTransformersFeaturizer, Featurized
+from open_biomed.utils.misc import concatenate_tokens
+
+class MolT5(TextBasedMoleculeEditingModel):
+    def __init__(self, model_cfg: Config) -> None:
+        super(MolT5, self).__init__(model_cfg)
+        self.main_model = T5ForConditionalGeneration.from_pretrained(model_cfg.hf_model_name_or_path)
+        self.tokenizer = T5Tokenizer.from_pretrained(model_cfg.hf_model_name_or_path)
+        self.featurizers = {
+            "molecule": MoleculeTransformersFeaturizer(
+                tokenizer=model_cfg.hf_model_name_or_path, 
+                max_length=model_cfg.smiles_max_length,
+                base='SMILES',
+            ),
+            "text": TextTransformersFeaturizer(
+                tokenizer=model_cfg.hf_model_name_or_path,
+                max_length=model_cfg.text_max_length,
+            )
+        }
+        self.collators = {
+            "molecule": DataCollatorWithPadding(self.tokenizer, padding=True),
+            "text": DataCollatorWithPadding(self.tokenizer, padding=True),
+        }
+        super(MolT5, self)._add_task()
+
+    def forward_text_based_molecule_editing(self, 
+        molecule: Featurized[Molecule], 
+        text: Featurized[Text], 
+        label: Featurized[Molecule],
+    ) -> Dict[str, torch.Tensor]:
+        concatenated = concatenate_tokens([molecule, text])
+        encoder_outputs = BaseModelOutput(last_hidden_state=self.main_model.encoder(**concatenated).last_hidden_state)
+        return {"loss": self.main_model(
+            encoder_outputs=encoder_outputs,
+            attention_mask=concatenated.attention_mask,
+            decoder_attention_mask=label.attention_mask,
+            labels=label.input_ids
+        ).loss}
+
+    def predict_text_based_molecule_editing(self, 
+        molecule: Featurized[Molecule], 
+        text: Featurized[Text],
+    ) -> List[Molecule]:
+        concatenated = concatenate_tokens([molecule, text])
+        encoder_outputs = BaseModelOutput(last_hidden_state=self.main_model.encoder(**concatenated).last_hidden_state)
+        decoder_outputs = self.main_model.generate(
+            encoder_outputs=encoder_outputs,
+            attention_mask=concatenated.attention_mask,
+            **self.config.predict.todict(),
+        )
+        preds = self.tokenizer.batch_decode(decoder_outputs, skip_special_tokens=True)
+        return [Molecule.from_smiles(smi) for smi in preds]

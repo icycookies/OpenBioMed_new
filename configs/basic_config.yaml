@@ -1,0 +1,36 @@
+task: !SUB ${task}
+exp_name: !SUB ${exp_name}
+debug: !SUB ${debug}
+wandb: !SUB ${wandb}
+wandb_resume_id: !SUB ${wandb_resume_id}
+empty_folder: !SUB ${empty_folder}
+test_only: !SUB ${test_only}
+seed: !SUB ${seed}
+logging_level: !SUB ${logging_level}
+
+dataset:
+  name: !SUB ${dataset_name}
+  path: !SUB ${dataset_path}
+  num_workers: !SUB ${num_workers}
+  batch_size_train: !SUB ${batch_size_train}
+  batch_size_eval: !SUB ${batch_size_eval}
+  debug: !SUB ${debug}
+
+train:
+  num_gpus: !SUB ${num_gpus}
+  resume: !SUB ${resume}
+  batch_size: !SUB ${batch_size_train}
+  max_epochs: !SUB ${max_epochs}
+  ckpt_freq: !SUB ${ckpt_freq}
+  log_interval: !SUB ${log_interval}
+  optimizer:
+    name: !SUB ${optimizer}
+    lr: !SUB ${lr}
+    weight_decay: !SUB ${weight_decay}
+  scheduler:
+    name: !SUB ${scheduler}
+  max_grad_norm: !SUB ${max_grad_norm}
+
+evaluation:
+  batch_size: !SUB ${batch_size_eval}
+  ckpt_path: !SUB ${ckpt_path}
