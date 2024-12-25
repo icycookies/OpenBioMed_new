@@ -88,7 +88,7 @@ class FSMolEdit(TextBasedMoleculeEditingDataset):
                     self.molecules.append(Molecule.from_smiles(sample["SMILES"]))
                     self.texts.append(Text.from_str(sample["text"]))
                     self.labels.append(Molecule.from_smiles(sample["SMILES2"]))
-                    if cur >= 500 and self.cfg.debug:
+                    if cur >= 5 and self.cfg.debug:
                         break
         
     @assign_split

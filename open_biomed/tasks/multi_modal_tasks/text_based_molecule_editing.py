@@ -57,7 +57,10 @@ class TextMoleculeEditingEvaluationCallback(pl.Callback):
         if batch_idx == 0:
             for i in range(2):
                 out_labels = '\n'.join([str(x) for x in self.eval_dataset.labels[i]])
-                logging.info(f"Original:{self.eval_dataset.molecules[i]}\nPrompt:{self.eval_dataset.texts[i]}\nPredict:{self.outputs[i]}\nGround Truth:{out_labels}")
+                logging.info(f"Original: {self.eval_dataset.molecules[i]}")
+                logging.info(f"Prompt: {self.eval_dataset.texts[i]}")
+                logging.info(f"Predict: {self.outputs[i]}")
+                logging.info(f"Ground Truth: {out_labels}")
 
     def on_validation_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         super().on_validation_epoch_start(trainer, pl_module)
@@ -70,7 +73,7 @@ class TextMoleculeEditingEvaluationCallback(pl.Callback):
         pl_module: pl.LightningModule
     ) -> None:
         cnt_valid, cnt_improved, cnt_accurate = 0, 0, 0
-        output_str = "\t".join(["Original", "Prompt", "Predicted", "Best_Reference", "All_Reference", "FP_Similarity"]) + "\n"
+        output_str = "\t".join(["Original", "Prompt", "Predicted", "Best_Reference", "All_Reference", "FP_Similarity", "FP_Similarity_orig"]) + "\n"
         for i in range(len(self.outputs)):
             best_sim, best_sim_orig = 0.0, 0.0
             best_ref = None
@@ -82,11 +85,12 @@ class TextMoleculeEditingEvaluationCallback(pl.Callback):
                 if cur_sim > best_sim:
                     best_sim = cur_sim
                     best_ref = ref_mol
-                    all_ref.append(str(ref_mol))
+                all_ref.append(str(ref_mol))
                 cur_sim = molecule_fingerprint_similarity(orig_mol, ref_mol)
                 if cur_sim > best_sim_orig:
                     best_sim_orig = cur_sim
-            output_str += "\t".join([str(orig_mol), str(prompt), str(self.outputs[i]), str(best_ref), ",".join(all_ref), f"{best_sim:.4f}"]) + "\n"
+                
+            output_str += "\t".join([str(orig_mol), str(prompt), str(self.outputs[i]), str(best_ref), ",".join(all_ref), f"{best_sim:.4f}", f"{best_sim_orig:.4f}"]) + "\n"
             if self.outputs[i].rdmol is not None:
                 cnt_valid += 1
             if best_sim > best_sim_orig:
@@ -94,7 +98,7 @@ class TextMoleculeEditingEvaluationCallback(pl.Callback):
             if check_identical_molecules(self.outputs[i], best_ref):
                 cnt_accurate += 1
 
-        output_path = os.path.join(trainer.default_root_dir, f"{self.status}_epoch{pl_module.current_epoch}")
+        output_path = os.path.join(trainer.default_root_dir, f"{self.status}_outputs", f"epoch{pl_module.current_epoch}")
         out_metrics = {
             f"{self.status}/validity": cnt_valid / len(self.outputs),
             f"{self.status}/ratio_improved": cnt_improved / len(self.outputs),

@@ -113,6 +113,9 @@ class DefaultModelWrapper(ModelWrapper):
     def validation_step(self, batch: Dict[str, Any], batch_idx: int, *args, **kwargs) -> Optional[STEP_OUTPUT]:
         return self.model.predict(**batch)
 
+    def test_step(self, batch: Dict[str, Any], batch_idx: int, *args, **kwargs) -> Optional[STEP_OUTPUT]:
+        return self.model.predict(**batch)
+
     def configure_optimizers(self) -> Any:
         if self.train_cfg.optimizer.name == "adam":
             self.optimizer = torch.optim.Adam(

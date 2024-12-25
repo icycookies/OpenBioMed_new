@@ -110,14 +110,15 @@ def molecule_fingerprint_similarity(mol1: Molecule, mol2: Molecule, fingerprint_
         mol1._add_rdmol()
         mol2._add_rdmol()
         if fingerprint_type == "morgan":
-            fp1 = AllChem.GetMorganFingerprint(mol1, 2)
-            fp2 = AllChem.GetMorganFingerprint(mol2, 2)
+            fp1 = AllChem.GetMorganFingerprint(mol1.rdmol, 2)
+            fp2 = AllChem.GetMorganFingerprint(mol2.rdmol, 2)
+            return DataStructs.TanimotoSimilarity(fp1, fp2)
         if fingerprint_type == "rdkit":
-            fp1 = Chem.RDKFingerprint(mol1)
-            fp2 = Chem.RDKFingerprint(mol2)
+            fp1 = Chem.RDKFingerprint(mol1.rdmol)
+            fp2 = Chem.RDKFingerprint(mol2.rdmol)
         if fingerprint_type == "maccs":
-            fp1 = MACCSkeys.GenMACCSKeys(mol1)
-            fp2 = MACCSkeys.GenMACCSKeys(mol2)
+            fp1 = MACCSkeys.GenMACCSKeys(mol1.rdmol)
+            fp2 = MACCSkeys.GenMACCSKeys(mol2.rdmol)
         return DataStructs.FingerprintSimilarity(
             fp1, fp2,
             metric=DataStructs.TanimotoSimilarity

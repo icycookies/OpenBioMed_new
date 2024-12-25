@@ -98,13 +98,14 @@ class TrainValPipeline(Pipeline):
         parser.add_argument("--batch_size_eval", type=int, default=16)
         parser.add_argument("--max_epochs", type=int, default=50)
         parser.add_argument("--ckpt_freq", type=int, default=5)
+        parser.add_argument("--save_top_k", type=int, default=5)
         parser.add_argument("--optimizer", type=str, default="adam")
         parser.add_argument("--lr", type=float, default=5e-4)
         parser.add_argument("--scheduler", type=str, default="cosine", choices=['cosine', 'plateau'])
         parser.add_argument("--weight_decay", type=float, default=0)
         parser.add_argument("--max_grad_norm", type=str, default='Q')
         parser.add_argument("--log_interval", type=int, default=100)
-        parser.add_argument("--ckpt_path", type=str, default="best.ckpt")
+        parser.add_argument("--ckpt_path", type=str, default="last")
 
     def setup_infra(self) -> None:
         # Setup paths
@@ -118,6 +119,10 @@ class TrainValPipeline(Pipeline):
         checkpoint_dir = os.path.join(accounting_dir, "checkpoints")
         val_output_dir = os.path.join(accounting_dir, "val_outputs")
         test_output_dir = os.path.join(accounting_dir, "test_outputs")
+        if not os.path.exists(val_output_dir):
+            os.makedirs(val_output_dir, exist_ok=True)
+        if not os.path.exists(test_output_dir):
+            os.makedirs(test_output_dir, exist_ok=True)
         accounting_cfg = {
             "dir": accounting_dir,
             "project_name": project_name,
@@ -178,6 +183,16 @@ class TrainValPipeline(Pipeline):
             max_grad_norm = float(self.cfg.train.max_grad_norm)
         except ValueError:
             max_grad_norm = self.cfg.train.max_grad_norm
+        self.checkpoint_callback = ModelCheckpoint(
+            monitor=self.cfg.train.monitor.name,
+            every_n_epochs=self.cfg.train.ckpt_freq,
+            dirpath=self.cfg.accounting.checkpoint_dir,
+            filename="epoch{epoch:02d}" + self.cfg.train.monitor.output_str,
+            save_top_k=self.cfg.train.save_top_k,
+            mode=self.cfg.train.monitor.mode,
+            auto_insert_metric_name=False,
+            save_last=True,
+        )
         self.trainer = pl.Trainer(
             default_root_dir=self.cfg.accounting.dir,
             max_epochs=self.cfg.train.max_epochs,
@@ -195,16 +210,7 @@ class TrainValPipeline(Pipeline):
                     recover_trigger_loss=1e7,
                 ),
                 GradientClip(max_grad_norm=max_grad_norm),
-                ModelCheckpoint(
-                    monitor=self.cfg.train.monitor.name,
-                    every_n_epochs=self.cfg.train.ckpt_freq,
-                    dirpath=self.cfg.accounting.checkpoint_dir,
-                    filename="epoch{epoch:02d}" + self.cfg.train.monitor.output_str,
-                    save_top_k=-1,
-                    mode=self.cfg.train.monitor.mode,
-                    auto_insert_metric_name=False,
-                    save_last=True,
-                )
+                self.checkpoint_callback,
             ] + [self.task.get_callbacks()]
         )
 
@@ -213,9 +219,14 @@ class TrainValPipeline(Pipeline):
             self.model.train_cfg.max_iters = len(self.datamodule.train_dataloader()) * self.cfg.train.max_epochs
             self.trainer.fit(self.model, train_dataloaders=self.datamodule.train_dataloader(), val_dataloaders=self.datamodule.val_dataloader())
             # ckpt_path can be 'best', 'last', or a specific path
+            if self.cfg.evaluation.ckpt_path == "best":
+                ckpt_path = self.checkpoint_callback.best_model_path
+            elif self.cfg.evaluation.ckpt_path == "last":
+                ckpt_path = os.path.join(self.cfg.accounting.checkpoint_dir, "last.ckpt")
+            else:
+                ckpt_path = self.cfg.evaluation.ckpt_path
             # TODO: implement parallel testing on multiple gpus
-            self.cfg.ckpt_path = os.path.join(self.cfg.accounting.checkpoint_dir, self.cfg.evaluation.ckpt_path)
-            self.trainer.test(self.model, dataloaders=self.datamodule.test_dataloader(), ckpt_path=self.cfg.evaluation.ckpt_path)
+            self.trainer.test(self.model, dataloaders=self.datamodule.test_dataloader(), ckpt_path=ckpt_path)
         else:
             self.trainer.test(self.model, dataloaders=self.datamodule.test_dataloader(), ckpt_path=self.cfg.evaluation.ckpt_path)
 

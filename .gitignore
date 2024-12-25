@@ -140,9 +140,9 @@ cython_debug/
 /logs/*
 /.vscode
 /assets/*
-/ckpts/**/*
+/checkpoints/**/*
 /datasets/**/*
-!/ckpts/**/.placeholder
+!/checkpoints/.placeholder
 !/datasets/**/.placeholder
 
 #files

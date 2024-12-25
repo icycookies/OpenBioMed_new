@@ -9,4 +9,6 @@ python open_biomed/train.py \
 --additional_config_file configs/model/$MODEL.yaml \
 --dataset_name $DATASET \
 --dataset_path ./datasets/$TASK/$DATASET \
---empty_folder
+--empty_folder \
+--test_only \
+--ckpt_path ./logs/text_based_molecule_editing/molt5-fs_mol_edit/train

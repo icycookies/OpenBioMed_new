@@ -22,6 +22,7 @@ train:
   batch_size: !SUB ${batch_size_train}
   max_epochs: !SUB ${max_epochs}
   ckpt_freq: !SUB ${ckpt_freq}
+  save_top_k: !SUB ${save_top_k}
   log_interval: !SUB ${log_interval}
   optimizer:
     name: !SUB ${optimizer}
