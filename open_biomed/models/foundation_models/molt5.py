@@ -6,12 +6,12 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration, DataCollatorWi
 from transformers.modeling_outputs import BaseModelOutput
 
 from open_biomed.data import Molecule, Text
-from open_biomed.models.task_models import TextBasedMoleculeEditingModel, MoleculeCaptioningModel
+from open_biomed.models.task_models import TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMoleculeGenerationModel
 from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import MoleculeTransformersFeaturizer, TextTransformersFeaturizer, Featurized
 from open_biomed.utils.misc import concatenate_tokens
 
-class MolT5(TextBasedMoleculeEditingModel, MoleculeCaptioningModel):
+class MolT5(TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMoleculeGenerationModel):
     def __init__(self, model_cfg: Config) -> None:
         super(MolT5, self).__init__(model_cfg)
         self.main_model = T5ForConditionalGeneration.from_pretrained(model_cfg.hf_model_name_or_path)
@@ -88,3 +88,29 @@ class MolT5(TextBasedMoleculeEditingModel, MoleculeCaptioningModel):
         )
         preds = self.tokenizer.batch_decode(decoder_outputs, skip_special_tokens=True)
         return [Text.from_str(text) for text in preds]
+
+    def forward_text_guided_molecule_generation(self, 
+        text: Featurized[Text], 
+        label: Featurized[Molecule],
+    ) -> Dict[str, torch.Tensor]:
+        concatenated = concatenate_tokens([text])
+        encoder_outputs = BaseModelOutput(last_hidden_state=self.main_model.encoder(**concatenated).last_hidden_state)
+        return {"loss": self.main_model(
+            encoder_outputs=encoder_outputs,
+            attention_mask=concatenated.attention_mask,
+            decoder_attention_mask=label.attention_mask,
+            labels=label.input_ids
+        ).loss}
+
+    def predict_text_guided_molecule_generation(self, 
+        text: Featurized[Text], 
+    ) -> List[Molecule]:
+        concatenated = concatenate_tokens([text])
+        encoder_outputs = BaseModelOutput(last_hidden_state=self.main_model.encoder(**concatenated).last_hidden_state)
+        decoder_outputs = self.main_model.generate(
+            encoder_outputs=encoder_outputs,
+            attention_mask=concatenated.attention_mask,
+            **self.config.predict.todict(),
+        )
+        preds = self.tokenizer.batch_decode(decoder_outputs, skip_special_tokens=True)
+        return [Molecule.from_smiles(smi) for smi in preds]

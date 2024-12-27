@@ -6,5 +6,8 @@ MODEL_REGISTRY = {
     },
     "molecule_captioning": {
         "molt5": MolT5
+    },
+    "text_guided_molecule_generation": {
+        "molt5": MolT5
     }
 }

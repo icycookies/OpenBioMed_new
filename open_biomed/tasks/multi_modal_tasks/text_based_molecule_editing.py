@@ -20,7 +20,7 @@ class TextMoleculeEditing(BaseTask):
 
     @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
-        return DefaultDataModule(dataset_cfg, featurizer, collator)
+        return DefaultDataModule("text_based_molecule_editing", dataset_cfg, featurizer, collator)
 
     @staticmethod
     def get_model_wrapper(model_cfg: Config, train_cfg: Config) -> pl.LightningModule:
