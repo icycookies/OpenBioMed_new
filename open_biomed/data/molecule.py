@@ -131,6 +131,6 @@ def check_identical_molecules(mol1: Molecule, mol2: Molecule) -> bool:
     try:
         mol1._add_rdmol()
         mol2._add_rdmol()
-        return Chem.MolToInchi(mol1) == Chem.MolToInchi(mol2)
+        return Chem.MolToInchi(mol1.rdmol) == Chem.MolToInchi(mol2.rdmol)
     except Exception:
         return False

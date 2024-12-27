@@ -28,8 +28,19 @@ logging_level = {
     "fatal": logging.FATAL,
 }
 
-class Pipeline:
+class Pipeline(ABC):
     def __init__(self) -> None:
+        pass
+
+    @abstractmethod
+    def setup_infra(self) -> None:
+        # Configure basic utilities such as logging and cerating output directories
+        raise NotImplementedError
+
+class TrainValPipeline(Pipeline):
+    def __init__(self) -> None:
+        super(TrainValPipeline, self).__init__()
+
         # Parse arguments
         parser = argparse.ArgumentParser()
         self.add_arguments(parser)
@@ -41,20 +52,6 @@ class Pipeline:
                 self.cfg,
                 Config(file, **args.__dict__)
             )
-
-    @abstractmethod
-    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
-        # Add basic arguments required
-        raise NotImplementedError
-
-    @abstractmethod
-    def setup_infra(self) -> None:
-        # Configure basic utilities such as logging and cerating output directories
-        raise NotImplementedError
-
-class TrainValPipeline(Pipeline):
-    def __init__(self) -> None:
-        super(TrainValPipeline, self).__init__()
 
         # Prepare task
         if self.cfg.task not in TASK_REGISTRY:
@@ -231,8 +228,24 @@ class TrainValPipeline(Pipeline):
             self.trainer.test(self.model, dataloaders=self.datamodule.test_dataloader(), ckpt_path=self.cfg.evaluation.ckpt_path)
 
 class InferencePipeline(Pipeline):
-    def __init__(self, output_prompt: str="") -> None:
+    def __init__(self, 
+        task: str="",
+        model: str="",
+        model_ckpt: str="",
+        logging_level: str="info",
+        use_gpu: bool=True,
+        output_prompt: str="",
+    ) -> None:
         super().__init__()
+
+        self.cfg = Config(config_file=f"./configs/model/{model}.yaml")
+        self.cfg.task = task
+        self.cfg.model_ckpt = model_ckpt
+        self.cfg.use_gpu = use_gpu
+        self.cfg.logging_level = logging_level
+        self.best_batch_size = 1
+        self.best_batch_size_defined = False
+        self.output_prompt = output_prompt
 
         # Prepare task
         if self.cfg.task not in TASK_REGISTRY:
@@ -244,15 +257,6 @@ class InferencePipeline(Pipeline):
         # Prepare model
         self.setup_model()
 
-        self.best_batch_size = None
-        self.output_prompt = output_prompt
-
-    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--task", type=str)                           # Task name
-        parser.add_argument("--config_path", type=str)                    # Configuration file
-        parser.add_argument("--use_gpu", action="store_true")             # Whether to use gpu (we assume only one device)
-        parser.add_argument("--logging_level", type=str, default="info")  # Logging level
-
     def setup_infra(self) -> None:
         logging.basicConfig(
             format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -262,45 +266,53 @@ class InferencePipeline(Pipeline):
         logging.info(f"The config of this process is:\n{self.cfg}")
 
     def setup_model(self):
-        self.model = self.task.get_model_wrapper(self.cfg)
+        self.model = self.task.get_model_wrapper(self.cfg.model, None)
+        self.featurizer, self.collator = self.model.get_featurizer()
+        state_dict = torch.load(open(self.cfg.model_ckpt, "rb"), map_location="cpu")
+        self.model.load_state_dict(state_dict["state_dict"])
         self.model.model.eval()
 
-    def run(self, batch_size: Union[int, str]="auto", *args, **kwargs) -> Any:
+    def run(self, batch_size: Union[int, str]="max", *args, **kwargs) -> Any:
         logging.debug(f"Input: {kwargs}")
         
         for key in kwargs:
-            num_samples = kwargs[key].shape[0]
-            break
-
+            if not isinstance(kwargs[key], list):
+                kwargs[key] = [kwargs[key]]
+            num_samples = len(kwargs[key])
+        
+        # Featurization
+        featurized = []
+        for i in range(num_samples):
+            inputs = {k:v[i] for k, v in kwargs.items()}
+            outputs = self.featurizer(**inputs)
+            featurized.append(outputs)
+            
         if batch_size == "auto":
             # Automatically define batch size
-            if num_samples > 1 and batch_size == "auto" and self.best_batch_size is None:
+            if not self.best_batch_size_defined and num_samples > self.best_batch_size:
                 self.best_batch_size = num_samples
                 while True:
                     try:
-                        self.model.predict(sub_batch_by_interval(
-                            start=0, 
-                            end=self.best_batch_size, 
-                            **kwargs,
-                        ))
+                        inputs = featurized[:self.best_batch_size]
+                        self.model.predict(self.collator(inputs))
                         break
                     except Exception as e:
                         if isinstance(e, RuntimeError) and "out of memory" in str(e):
                             torch.cuda.empty_cache()
                             logging.debug(f"Reduce batch size from {self.best_batch_size} to {self.best_batch_size // 2}")
                             self.best_batch_size = self.best_batch_size // 2
+                            self.best_batch_size_defined = True
                         else:
                             raise e
             batch_size = self.best_batch_size
+        else:
+            batch_size = num_samples
         
         outputs = []
         for i in tqdm(range((num_samples - 1) // batch_size + 1), desc="Inference Steps"):
             # Generate a output text that both LLM and experts can understand
-            batch_output = self.model.predict(sub_batch_by_interval(
-                start=i * batch_size, 
-                end=(i + 1) * batch_size,
-                **kwargs,
-            ))
+            inputs = featurized[i * batch_size: (i + 1) * batch_size]
+            batch_output = self.model.predict(self.collator(inputs))
             for output in batch_output:
                 outputs.append(self.output_prompt.format(output=output, **kwargs))
         return outputs
