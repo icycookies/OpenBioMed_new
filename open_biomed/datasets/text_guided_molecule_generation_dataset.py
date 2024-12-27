@@ -11,59 +11,59 @@ from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import Featurizer, Featurized
 import csv
 
-class MoleculeCaptioningDataset(BaseDataset):
+class TextGuidedMoleculeGenerationDataset(BaseDataset):
     def __init__(self, cfg: Config, featurizer: Featurizer) -> None:
-        self.molecules, self.labels = [], []
-        super(MoleculeCaptioningDataset, self).__init__(cfg, featurizer)
+        self.texts, self.labels = [], []
+        super(TextGuidedMoleculeGenerationDataset, self).__init__(cfg, featurizer)
 
     def __len__(self) -> int:
-        return len(self.molecules)
+        return len(self.texts)
 
     @featurize
     def __getitem__(self, index) -> Dict[str, Featurized[Any]]:
         return {
-            "molecule": self.molecules[index], 
+            "text": self.texts[index], 
             "label": self.labels[index],
         }
 
-class MoleculeCaptioningEvalDataset(Dataset):
+class TextGuidedMoleculeGenerationEvalDataset(Dataset):
     def __init__(self) -> None:
-        super(MoleculeCaptioningEvalDataset, self).__init__()
-        self.molecules, self.labels = [], []
+        super(TextGuidedMoleculeGenerationEvalDataset, self).__init__()
+        self.texts, self.labels = [], []
 
     @classmethod
-    def from_train_set(cls, dataset: MoleculeCaptioningDataset) -> Self:
+    def from_train_set(cls, dataset: TextGuidedMoleculeGenerationDataset) -> Self:
         mol2label = dict()
         for i in range(len(dataset)):
-            molecule = dataset.molecules[i]
+            text = dataset.texts[i]
             label = dataset.labels[i]
-            dict_key = str(molecule)
+            dict_key = str(text)
             if dict_key not in mol2label:
                 mol2label[dict_key] = []
-            mol2label[dict_key].append((molecule, label))
+            mol2label[dict_key].append((text, label))
         new_dataset = cls()
         for k, v in mol2label.items():
-            new_dataset.molecules.append(v[0][0])
+            new_dataset.texts.append(v[0][0])
             new_dataset.labels.append(v[0][1])
         new_dataset.featurizer = dataset.featurizer
         return new_dataset
 
     def __len__(self) -> int:
-        return len(self.molecules)
+        return len(self.texts)
 
     @featurize
     def __getitem__(self, index) -> Dict[str, Featurized[Any]]:
         return {
-            "molecule": self.molecules[index], 
+            "text": self.texts[index], 
             "label": self.labels[index],
         }
     
     def get_labels(self) -> List[List[Molecule]]:
         return self.labels
 
-class CheBI20ForMol2Text(MoleculeCaptioningDataset):
+class CheBI20ForText2Mol(TextGuidedMoleculeGenerationDataset):
     def __init__(self, cfg: Config, featurizer: Featurizer) -> None:
-        super(CheBI20ForMol2Text, self).__init__(cfg, featurizer)
+        super(CheBI20ForText2Mol, self).__init__(cfg, featurizer)
 
     def _load_data(self) -> None:
         self.split_indexes = {}
@@ -79,18 +79,18 @@ class CheBI20ForMol2Text(MoleculeCaptioningDataset):
                     cnt += 1
                     cur += 1
 
-                    self.molecules.append(Molecule.from_smiles(line["SMILES"]))
-                    self.labels.append(Text.from_str(line["description"]))
+                    self.texts.append(Text.from_str(line["description"]))
+                    self.labels.append(Molecule.from_smiles(line["SMILES"]))
                     if cur >= 5 and self.cfg.debug:
                         break
         
     @assign_split
     def split(self, split_cfg: Optional[Config] = None) -> Tuple[Any, Any, Any]:
-        attrs = ["molecules", "labels"]
+        attrs = ["texts", "labels"]
         ret = (
             self.get_subset(self.split_indexes["train"], attrs), 
-            MoleculeCaptioningEvalDataset.from_train_set(self.get_subset(self.split_indexes["validation"], attrs)),
-            MoleculeCaptioningEvalDataset.from_train_set(self.get_subset(self.split_indexes["test"], attrs)),
+            TextGuidedMoleculeGenerationEvalDataset.from_train_set(self.get_subset(self.split_indexes["validation"], attrs)),
+            TextGuidedMoleculeGenerationEvalDataset.from_train_set(self.get_subset(self.split_indexes["test"], attrs)),
         )
         del self
         return ret

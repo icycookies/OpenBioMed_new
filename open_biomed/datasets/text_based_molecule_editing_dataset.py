@@ -64,7 +64,7 @@ class TextBasedMoleculeEditingEvalDataset(Dataset):
             "label": self.labels[index],
         }
     
-    def get_labels(self) -> List[List[Molecule]]:
+    def get_labels(self) -> List[List[Text]]:
         return self.labels
 
 class FSMolEdit(TextBasedMoleculeEditingDataset):
