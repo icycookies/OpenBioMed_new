@@ -48,9 +48,9 @@ class BaseTask(ABC):
         raise NotImplementedError
 
 class DefaultDataModule(pl.LightningDataModule):
-    def __init__(self, dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> None:
+    def __init__(self, task: str,dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> None:
         super(DefaultDataModule, self).__init__()
-        dataset = DATASET_REGISTRY[dataset_cfg.name](dataset_cfg, featurizer)
+        dataset = DATASET_REGISTRY[task][dataset_cfg.name](dataset_cfg, featurizer)
         train, valid, test = dataset.split()
         self.train_loader = DataLoader(
             dataset=train, 
