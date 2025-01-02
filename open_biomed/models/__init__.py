@@ -17,5 +17,5 @@ MODEL_REGISTRY = {
         "molt5": MolT5,
         "biot5": BioT5,
         "biot5_plus": BioT5_PLUS
-    }
+    },
 }
