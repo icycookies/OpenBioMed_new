@@ -20,21 +20,21 @@ from rouge_score import rouge_scorer
 from transformers import BertTokenizerFast
 import numpy as np
 
-class MoleculeQA(BaseTask):
+class ProteinQA(BaseTask):
     def __init__(self) -> None:
         super().__init__()
 
     @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
-        return DefaultDataModule("molecule_question_answering", dataset_cfg, featurizer, collator)
+        return DefaultDataModule("protein_question_answering", dataset_cfg, featurizer, collator)
 
     @staticmethod
     def get_model_wrapper(model_cfg: Config, train_cfg: Config) -> pl.LightningModule:
-        return DefaultModelWrapper("molecule_question_answering", model_cfg, train_cfg)
+        return DefaultModelWrapper("protein_question_answering", model_cfg, train_cfg)
 
     @staticmethod
     def get_callbacks(callback_cfg: Optional[Config]=None) -> pl.Callback:
-        return MoleculeQAEvaluationCallback()
+        return ProteinQAEvaluationCallback()
 
     @staticmethod
     def get_monitor_cfg() -> Struct:
@@ -44,7 +44,7 @@ class MoleculeQA(BaseTask):
             mode="max",
         )
 
-class MoleculeQAEvaluationCallback(pl.Callback):
+class ProteinQAEvaluationCallback(pl.Callback):
     def __init__(self) -> None:
         super().__init__()
         self.outputs = []

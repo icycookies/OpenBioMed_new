@@ -17,5 +17,15 @@ MODEL_REGISTRY = {
         "molt5": MolT5,
         "biot5": BioT5,
         "biot5_plus": BioT5_PLUS
-    }
+    },
+    "molecule_question_answering":{
+        "molt5": MolT5,
+        "biot5": BioT5,
+        "biot5_plus": BioT5_PLUS
+    },
+    "protein_question_answering":{
+        "molt5": MolT5,
+        "biot5": BioT5,
+        "biot5_plus": BioT5_PLUS
+    },
 }
