@@ -3,6 +3,7 @@ from typing import Any, Dict, Generic, List, TypeVar
 
 import os
 import sys
+import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from functools import wraps
@@ -94,6 +95,19 @@ class TextTransformersFeaturizer(TextFeaturizer):
             truncation=True, 
             add_special_tokens=self.add_special_tokens,
         )
+
+# For classification tasks, directly convert numbers or arrays into tensors.
+class ClassLabelFeaturizer(Featurizer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    # Input a number or an array, and return a tensor.
+    def __call__(self, label: np.array) -> torch.tensor:
+        return  torch.tensor(label)
+
+    def get_attrs(self) -> List[str]:
+        return ["classlabel"]
+
 
 class EnsembleFeaturizer(Featurizer):
     def __init__(self, to_ensemble: Dict[str, Featurizer]) -> None:

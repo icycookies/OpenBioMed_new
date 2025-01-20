@@ -1,6 +1,7 @@
 from open_biomed.models.foundation_models.molt5 import MolT5
 from open_biomed.models.foundation_models.biot5 import BioT5
 from open_biomed.models.foundation_models.biot5_plus import BioT5_PLUS
+from open_biomed.models.foundation_models.graphmvp import GraphMVP
 
 MODEL_REGISTRY = {
     "text_based_molecule_editing": {
@@ -28,4 +29,7 @@ MODEL_REGISTRY = {
         "biot5": BioT5,
         "biot5_plus": BioT5_PLUS
     },
+    "molecule_property_prediction": {
+        "graphmvp": GraphMVP
+    }
 }
