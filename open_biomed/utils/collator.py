@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
-
 from torch_geometric.data import Data, Batch
+import torch
+
 from transformers import AutoTokenizer, DataCollatorWithPadding
 
 class Collator(ABC):
@@ -12,6 +13,14 @@ class Collator(ABC):
     def __call__(self, inputs: List[Any]) -> Any:
         raise NotImplementedError
 
+    def _collate_single(self, data):
+        if isinstance(data[0], Data):
+            return Batch.from_data_list(data)
+        elif torch.is_tensor(data[0]):
+            return torch.stack([x.squeeze() for x in data])
+        elif isinstance(data[0], int):
+            return torch.tensor(data).view((-1, 1))
+
 class PygCollator(Collator):
     def __init__(self, follow_batch: List[str]=[], exclude_keys: List[str]=[]) -> None:
         super().__init__()
@@ -20,6 +29,22 @@ class PygCollator(Collator):
 
     def __call__(self, inputs: List[Data]) -> Batch:
         return Batch.from_data_list(inputs, follow_batch=self.follow_batch, exclude_keys=self.exclude_keys)
+
+
+class ClassLabelCollator(Collator):
+    def __call__(self, inputs: List[Any]) -> Any:
+        batch = torch.stack(inputs)
+        return batch
+
+
+class DPCollator(Collator):
+    def __init__(self):
+        super(DPCollator, self).__init__()
+
+    def __call__(self, mols):
+        batch = self._collate_single(mols)
+        return batch
+
 
 class EnsembleCollator(Collator):
     def __init__(self, to_ensemble: Dict[str, Collator]) -> None:
