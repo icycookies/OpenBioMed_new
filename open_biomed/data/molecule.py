@@ -1,11 +1,13 @@
 from typing import Any, Dict, List, Tuple
 from typing_extensions import Self
 
+import copy
 import numpy as np
 from rdkit import Chem, DataStructs, RDLogger
 RDLogger.DisableLog("rdApp.*")
 from rdkit.Chem import AllChem, MACCSkeys
 from rdkit.Chem.AllChem import RWMol
+import re
 from torch_geometric.data import Data as Graph
 
 from open_biomed.data.text import Text
@@ -37,7 +39,10 @@ class Molecule:
     @classmethod
     def from_rdmol(cls, rdmol: RWMol) -> Self:
         # initialize a molecule with a RDKit molecule
-        pass
+        molecule = cls()
+        molecule.rdmol = rdmol
+        molecule.smiles = Chem.MolToSmiles(rdmol)
+        return molecule
 
     @classmethod
     def from_pdb_file(cls, pdb_file: str) -> Self:
@@ -134,3 +139,26 @@ def check_identical_molecules(mol1: Molecule, mol2: Molecule) -> bool:
         return Chem.MolToInchi(mol1.rdmol) == Chem.MolToInchi(mol2.rdmol)
     except Exception:
         return False
+
+def fix_valence(mol: Chem.RWMol) -> Tuple[Chem.RWMol, bool]:
+    mol = copy.deepcopy(mol)
+    fixed = False
+    cnt_loop = 0
+    while True:
+        try:
+            Chem.SanitizeMol(copy.deepcopy(mol))
+            fixed = True
+            Chem.SanitizeMol(mol)
+            break
+        except Chem.rdchem.AtomValenceException as e:
+            err = e
+        except Exception as e:
+            return mol, False # from HERE: rerun sample
+        cnt_loop += 1
+        if cnt_loop > 100:
+            break
+        N4_valence = re.compile(u"Explicit valence for atom # ([0-9]{1,}) N, 4, is greater than permitted")
+        index = N4_valence.findall(err.args[0])
+        if len(index) > 0:
+            mol.GetAtomWithIdx(int(index[0])).SetFormalCharge(1)
+    return mol, fixed

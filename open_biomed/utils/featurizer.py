@@ -9,7 +9,7 @@ from functools import wraps
 import torch
 from transformers import AutoTokenizer, BatchEncoding
 
-from open_biomed.data import Molecule, Protein, Text
+from open_biomed.data import Molecule, Protein, Pocket, Text
 
 T = TypeVar('T', bound=Any)
 
@@ -72,7 +72,7 @@ class TextFeaturizer(Featurizer):
         super().__init__()
 
     @abstractmethod
-    def __call__(self, text: Text) -> List[Any]:
+    def __call__(self, text: Text) -> Dict[str, Any]:
         raise NotImplementedError
 
     def get_attrs(self) -> List[str]:
@@ -94,6 +94,17 @@ class TextTransformersFeaturizer(TextFeaturizer):
             truncation=True, 
             add_special_tokens=self.add_special_tokens,
         )
+
+class PocketFeaturizer(Featurizer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @abstractmethod
+    def __call__(self, pocket: Pocket) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def get_attrs(self) -> List[str]:
+        return ["pocket"]
 
 class EnsembleFeaturizer(Featurizer):
     def __init__(self, to_ensemble: Dict[str, Featurizer]) -> None:
