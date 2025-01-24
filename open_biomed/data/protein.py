@@ -20,6 +20,12 @@ class Protein(dict):
         self.kg_accession = None
 
     @classmethod
+    def from_sequence(cls, sequence: str) -> Self:
+        # initialize a protein with a sequence
+        protein = cls()
+        protein.sequence = sequence
+        return protein
+    @classmethod
     def from_fasta(cls, fasta: str) -> Self:
         # initialize a protein with a fasta file
         pass

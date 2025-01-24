@@ -1,0 +1,9 @@
+{
+  "name": "yamanishi08",
+  "name1":"bmkg-dti",
+  "name2":"davis",
+  "name3":"kiba",
+  "batch_size_train":100,
+  "num_workers":10,
+  "batch_size_eval":100
+}
