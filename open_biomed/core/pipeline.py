@@ -233,7 +233,7 @@ class InferencePipeline(Pipeline):
         model: str="",
         model_ckpt: str="",
         logging_level: str="info",
-        use_gpu: bool=True,
+        device: str="cpu",
         output_prompt: str="",
     ) -> None:
         super().__init__()
@@ -241,7 +241,7 @@ class InferencePipeline(Pipeline):
         self.cfg = Config(config_file=f"./configs/model/{model}.yaml")
         self.cfg.task = task
         self.cfg.model_ckpt = model_ckpt
-        self.cfg.use_gpu = use_gpu
+        self.cfg.device = device
         self.cfg.logging_level = logging_level
         self.best_batch_size = 1
         self.best_batch_size_defined = False
@@ -269,8 +269,9 @@ class InferencePipeline(Pipeline):
         self.model = self.task.get_model_wrapper(self.cfg.model, None)
         self.featurizer, self.collator = self.model.get_featurizer()
         state_dict = torch.load(open(self.cfg.model_ckpt, "rb"), map_location="cpu")
-        self.model.load_state_dict(state_dict["state_dict"])
+        self.model.load_state_dict(state_dict["state_dict"], strict=False)
         self.model.model.eval()
+        self.model.to(self.cfg.device)
 
     def run(self, batch_size: Union[int, str]="max", *args, **kwargs) -> Any:
         logging.debug(f"Input: {kwargs}")
@@ -312,7 +313,7 @@ class InferencePipeline(Pipeline):
         for i in tqdm(range((num_samples - 1) // batch_size + 1), desc="Inference Steps"):
             # Generate a output text that both LLM and experts can understand
             inputs = featurized[i * batch_size: (i + 1) * batch_size]
-            batch_output = self.model.predict(self.collator(inputs))
+            batch_output = self.model.predict(self.model.transfer_batch_to_device(self.collator(inputs), self.cfg.device, 0))
             for output in batch_output:
                 outputs.append(self.output_prompt.format(output=output, **kwargs))
         return outputs

@@ -10,14 +10,14 @@ from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import EnsembleFeaturizer
 from open_biomed.utils.misc import sub_dict
 
-class SBDDModel(BaseModel, ABC):
+class StructureBasedDrugDesignModel(BaseModel, ABC):
     def __init__(self, model_cfg: Config) -> None:
         super().__init__(model_cfg)
 
     def _add_task(self) -> None:
-        self.supported_tasks["sbdd"] = {
-            "forward_fn": self.forward_sbdd,
-            "predict_fn": self.predict_sbdd,
+        self.supported_tasks["structure_based_drug_design"] = {
+            "forward_fn": self.forward_structure_based_drug_design,
+            "predict_fn": self.predict_structure_based_drug_design,
             "featurizer": EnsembleFeaturizer({
                 **sub_dict(self.featurizers, ["pocket"]),
                 "label": self.featurizers["molecule"]
@@ -29,14 +29,14 @@ class SBDDModel(BaseModel, ABC):
         }
     
     @abstractmethod
-    def forward_sbdd(self, 
+    def forward_structure_based_drug_design(self, 
         pocket: List[Pocket], 
         label: List[Molecule],
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     @abstractmethod
-    def predict_sbdd(self,
+    def predict_structure_based_drug_design(self,
         pocket: List[Pocket], 
     ) -> List[Molecule]:
         raise NotImplementedError

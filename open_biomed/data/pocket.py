@@ -39,10 +39,10 @@ class Pocket:
         sel_idx = set()
         for pos in ligand.conformer:
             for i, residue in enumerate(protein.residues):
-                dist = np.linalg.norm(residue['center_of_mass'] - pos, ord=2, axis=-1)
+                dist = np.linalg.norm(residue.center_of_mass - pos, ord=2, axis=-1)
                 if dist < radius and not i in sel_idx:
                     sel_idx.add(i)
-        return Pocket.from_protein_subseq(list(sel_idx))
+        return Pocket.from_protein_subseq(protein, list(sel_idx))
 
     @classmethod
     def from_protein_subseq(cls, protein: Protein, indices: List[int]) -> Self:

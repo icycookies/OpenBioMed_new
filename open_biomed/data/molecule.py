@@ -50,6 +50,17 @@ class Molecule:
         pass
 
     @classmethod
+    def from_sdf_file(cls, sdf_file: str) -> Self:
+        # initialize a molecule with a sdf file
+        loader = Chem.SDMolSupplier(sdf_file)
+        for mol in loader:
+            if mol is not None:
+                molecule = Molecule.from_rdmol(mol)
+                conformer = mol.GetConformer()
+                molecule.conformer = np.array(conformer.GetPositions())
+        return molecule
+
+    @classmethod
     def from_image_file(cls, image_file: str) -> Self:
         # initialize a molecule with a image file
         pass

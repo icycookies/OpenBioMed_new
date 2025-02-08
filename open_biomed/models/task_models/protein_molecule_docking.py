@@ -16,8 +16,8 @@ class PocketMolDockModel(BaseModel, ABC):
 
     def _add_task(self) -> None:
         self.supported_tasks["sbdd"] = {
-            "forward_fn": self.forward_sbdd,
-            "predict_fn": self.predict_sbdd,
+            "forward_fn": self.forward_pocket_molecule_docking,
+            "predict_fn": self.predict_pocket_molecule_docking,
             "featurizer": EnsembleFeaturizer({
                 **sub_dict(self.featurizers, ["pocket"]),
                 "label": self.featurizers["molecule"]

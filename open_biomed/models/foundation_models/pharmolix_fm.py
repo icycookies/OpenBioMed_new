@@ -15,7 +15,7 @@ from torch_scatter import scatter_mean, scatter_sum
 from tqdm import tqdm
 
 from open_biomed.data import Molecule, Pocket, fix_valence, estimate_ligand_atom_num
-from open_biomed.models.task_models import PocketMolDockModel, SBDDModel
+from open_biomed.models.task_models import PocketMolDockModel, StructureBasedDrugDesignModel
 from open_biomed.utils.collator import PygCollator
 from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import MoleculeFeaturizer, PocketFeaturizer, Featurized
@@ -75,6 +75,7 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
             "pos": pos,
             "node_type": node_type,
             "halfedge_type": halfedge_type,
+            "halfedge_index": halfedge_index,
             "is_peptide": is_peptide,
         })
 
@@ -102,7 +103,7 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
         for i in range(bond_index.shape[1]):
             st, ed = bond_index[0][i], bond_index[1][i]
             if preds["halfedge_type"][i] > 0:
-                rdmol.AddBond(st, ed, self.mol_bond_types[preds["halfedge_type"][i]])
+                rdmol.AddBond(int(st), int(ed), self.mol_bond_types[preds["halfedge_type"][i]])
 
         # Check validity and fix N valence
         mol = rdmol.GetMol()
@@ -131,10 +132,10 @@ class PharmolixFMPocketFeaturizer(PocketFeaturizer):
         elements_one_hot = (elements.view(-1, 1) == self.atomic_numbers.view(1, -1)).long()
         aa_type = torch.LongTensor([atom["aa_type"] for atom in pocket.atoms])
         aa_one_hot = F.one_hot(aa_type, num_classes=self.max_num_aa)
-        is_backbone = torch.LongTensor([atom["is_backbone"] for atom in pocket.atoms])
+        is_backbone = torch.LongTensor([atom["is_backbone"] for atom in pocket.atoms]).unsqueeze(-1)
         
         x = torch.cat([elements_one_hot, aa_one_hot, is_backbone], dim=-1).float()
-        pos = torch.tensor(pocket.conformer)
+        pos = torch.tensor(pocket.conformer, dtype=torch.float32)
         knn_edge_index = knn_graph(pos, k=self.knn, flow='target_to_source')
         pocket_center = pos.mean(dim=0)
         pos -= pocket_center
@@ -503,9 +504,6 @@ class ContextNodeEdgeNet(nn.Module):
                     h_node, h_ctx_edge, ctx_knn_edge_index, vec_ctx, dist_ctx, node_extra,
                     edge_extra=None, h_node_right=h_ctx)
 
-        if self.local_update:
-            pos_node = pos_node + self.local_net(h_node, pos_node, h_edge, edge_index, batch_node)
-
         if self.node_only:
             return h_node
         else:
@@ -550,7 +548,7 @@ class ContextNodeEdgeNet(nn.Module):
         h_dist = self.dist_exp_ctx(distance)
         return h_dist, relative_vec, distance, ctx_knn_edge_index
 
-class PharmolixFM(PocketMolDockModel, SBDDModel):
+class PharmolixFM(PocketMolDockModel, StructureBasedDrugDesignModel):
     def __init__(self, model_cfg: Config) -> None:
         super(PharmolixFM, self).__init__(model_cfg)
         self.config = model_cfg
@@ -560,7 +558,7 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
         # # pocket encoder
         pocket_dim = model_cfg.pocket_dim
         self.pocket_embedder = nn.Linear(model_cfg.pocket_in_dim, pocket_dim)
-        self.pocket_encoder = ContextNodeEdgeNet(pocket_dim, node_only=True, **model_cfg.pocket)
+        self.pocket_encoder = ContextNodeEdgeNet(pocket_dim, node_only=True, **model_cfg.pocket.todict())
 
         # # mol embedding
         self.addition_node_features = getattr(model_cfg, 'addition_node_features', [])
@@ -573,7 +571,7 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
 
         # # bfn backbone
         self.denoiser = ContextNodeEdgeNet(node_dim, edge_dim,
-                            context_dim=pocket_dim, **model_cfg.denoiser)
+                            context_dim=pocket_dim, **model_cfg.denoiser.todict())
 
         # # decoder for discrete variables
         self.node_decoder = MLP(node_dim, self.num_node_types, node_dim)
@@ -604,7 +602,7 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
         gamma = (1 - torch.pow(self.config.sigma1, 2 * t)).unsqueeze(1)  # [B]
         mu = gamma * x + torch.sqrt((gamma + 0.01) * (1 - gamma)) * torch.randn_like(x)
         if fixed_pos is not None:
-            mu[fixed_pos] = orig_x[fixed_pos]
+            mu[torch.where(fixed_pos)] = orig_x[torch.where(fixed_pos)]
         return mu, gamma
 
     def discrete_var_bayesian_update(self, t: torch.Tensor, x: torch.Tensor, K: int, fixed_pos: torch.Tensor=None, orig_x: torch.Tensor=None) -> torch.Tensor:
@@ -621,23 +619,25 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
         y = mean + std * eps
         theta = F.softmax(y, dim=-1)
         if fixed_pos is not None:
-            theta[fixed_pos] = orig_x[fixed_pos]
+            theta[torch.where(fixed_pos)] = orig_x[torch.where(fixed_pos)]
         return theta
 
-    def crate_dummy_molecule(self, pocket: Featurized[Pocket]) -> Featurized[Molecule]:
-        num_atoms = pocket["estimated_ligand_num_atoms"]
+    def create_dummy_molecule(self, pocket: Featurized[Pocket]) -> Featurized[Molecule]:
+        num_atoms = pocket["estimated_ligand_num_atoms"].cpu()
         num_halfedge = (num_atoms ** 2 - num_atoms) // 2
         batch_size = num_atoms.shape[0]
-        return {
+        return Data(**{
             "pos": torch.randn(num_atoms, 3) * 0.01,
             "node_type": torch.ones(num_atoms.sum().item(), self.num_node_types) / self.num_node_types,
             "halfedge_type": torch.ones(num_halfedge.sum().item(), self.num_edge_types) / self.num_edge_types,
-            "batch_pos": torch.repeat_interleave(torch.arange(batch_size), num_atoms),
-            "batch_node_type": torch.repeat_interleave(torch.arange(batch_size), num_atoms),
-            "batch_hafledge_type": torch.repeat_interleave(torch.arange(batch_size), num_halfedge),
-        }
+            "is_peptide": torch.zeros(num_atoms.sum().item(), dtype=torch.long),
+            "halfedge_index": torch.cat([torch.triu_indices(num, num, offset=1) for num in num_atoms], dim=0),
+            "pos_batch": torch.repeat_interleave(torch.arange(batch_size), num_atoms),
+            "node_type_batch": torch.repeat_interleave(torch.arange(batch_size), num_atoms),
+            "halfedge_type_batch": torch.repeat_interleave(torch.arange(batch_size), num_halfedge),
+        }).to(pocket["atom_feature"].device)
 
-    def forward(self, 
+    def model_forward(self, 
         molecule: Featurized[Molecule],
         pocket: Optional[Featurized[Pocket]],
     ) -> Dict[str, torch.Tensor]:
@@ -681,6 +681,9 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
             h_node=h_pocket,
             pos_node=pocket['pos'],
             edge_index=pocket['knn_edge_index'],
+            h_edge=None,
+            node_extra=None,
+            edge_extra=None,
         )
 
         # # 2 interdependency modeling
@@ -691,11 +694,11 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
             edge_index=edge_index,
             node_extra=node_extra,
             edge_extra=edge_extra,
-            batch_node=molecule['batch_node_type'],
+            batch_node=molecule['node_type_batch'],
             # pocket
             h_ctx=h_pocket,
             pos_ctx=pocket['pos'],
-            batch_ctx=pocket['batch_pos'],
+            batch_ctx=pocket['pos_batch'],
         )
 
         # # 3 predict the variables
@@ -713,18 +716,20 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
             additional_outputs = {'confidence_node_type': pred_node_cfd, 'confidence_pos': pred_pos_cfd, 'confidence_halfedge_type': pred_edge_cfd}
 
         return {
-            'pred_pos': pred_pos,
-            'pred_node_type': pred_node,
-            'pred_halfedge_type': pred_halfedge,
+            'pos': pred_pos,
+            'node_type': pred_node,
+            'halfedge_type': pred_halfedge,
             **additional_outputs,
         }
 
-    @torch.no_grad
+    @torch.no_grad()
     def sample(self,
         molecule: Featurized[Molecule],
-        pocket: Optional[Featurized[Pocket]],
+        pocket: Optional[Featurized[Pocket]]=None,
     ) -> List[Molecule]:
         # Initialization
+        print(molecule)
+        print(pocket)
         device = molecule['pos'].device
         
         molecule_in = {
@@ -743,8 +748,8 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
             cfd_traj[key] = []
 
         # BFN update
-        for step in tqdm(range(1, self.config.num_sample_steps + 1), desc=f"Sampling steps {step}"):
-            t = torch.ones(1, dtype=torch.float, device=device) * (step - 1) / self.num_sample_steps
+        for step in tqdm(range(1, self.config.num_sample_steps + 1), desc="Sampling"):
+            t = torch.ones(1, dtype=torch.float, device=device) * (step - 1) / self.config.num_sample_steps
             t_in = {
                 "pos": t.repeat(molecule["pos"].shape[0]),
                 "node_type": t.repeat(molecule["pos"].shape[0]),
@@ -752,10 +757,9 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
             }
             for key in t_in:
                 fixed = molecule[f"fixed_{key}"]
-                if fixed is not None:
-                    t_in[key][fixed] = 1
+                t_in[key][torch.where(fixed)] = 1
                 molecule[f"t_{key}"] = t_in[key]
-            outputs_step = self.forward(molecule, pocket)
+            outputs_step = self.model_forward(molecule, pocket)
             for key in t_in:
                 in_traj[key].append(copy.deepcopy(molecule[key]))
                 out_traj[key].append(copy.deepcopy(outputs_step[key]))
@@ -767,7 +771,7 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
                     molecule[key] = outputs_step[key]
                 continue
 
-            molecule["pos"] = self.continuous_var_bayesian_update(
+            molecule["pos"], _ = self.continuous_var_bayesian_update(
                 t_in["pos"], outputs_step["pos"], 
                 fixed_pos=molecule["fixed_pos"], orig_x=molecule["pos"]
             )
@@ -781,7 +785,7 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
             )
 
         # Split and reconstruct molecule
-        num_mols = molecule["batch_index_node_type"].max()
+        num_mols = molecule["node_type_batch"].max() + 1
         in_traj_split, out_traj_split, cfd_traj_split = [], [], []
         out_molecules = []
         for i in tqdm(range(num_mols), desc="Post processing molecules..."):
@@ -790,24 +794,39 @@ class PharmolixFM(PocketMolDockModel, SBDDModel):
             cfd_traj_split.append({})
             cur_molecule = {}
             for key in molecule_in:
-                in_traj_split[i][key] = [val[molecule[f"batch_index_{key}"]] for val in in_traj[key]]
-                out_traj_split[i][key] = [val[molecule[f"batch_index_{key}"]] for val in out_traj[key]]
-                cfd_traj_split[i][key] = [val[molecule[f"batch_index_{key}"]] for val in cfd_traj[key]]
+                idx = torch.where(molecule[f"{key}_batch"] == i)
+                in_traj_split[i][key] = [val[idx] for val in in_traj[key]]
+                out_traj_split[i][key] = [val[idx] for val in out_traj[key]]
+                cfd_traj_split[i][key] = [val[idx] for val in cfd_traj[key]]
                 cur_molecule[key] = out_traj_split[i][key][-1]
-            out_molecules.append(self.featurizers["molecule"].decode(cur_molecule))
-        return out_molecules        
+            cur_molecule["node_type"] = torch.argmax(cur_molecule["node_type"], dim=-1)
+            cur_molecule["halfedge_type"] = torch.argmax(cur_molecule["halfedge_type"], dim=-1)
+            out_molecules.append(self.featurizers["molecule"].decode(cur_molecule, pocket))
+        return out_molecules
+
+    # TODO: implement training of PharMolixFM
+    def forward_pocket_molecule_docking(self, pocket: Featurized[Pocket], label: Featurized[Molecule]) -> Dict[str, torch.Tensor]:
+        pass
+
+    def forward_structure_based_drug_design(self, pocket: List[Pocket], label: List[Molecule]) -> Dict[str, torch.Tensor]:
+        pass
 
     def predict_pocket_molecule_docking(self,
         molecule: Featurized[Molecule],
         pocket: Featurized[Pocket],
     ) -> List[Molecule]:
-        molecule["fixed_pos"] = None
+        molecule["fixed_pos"] = torch.zeros(molecule["pos"].shape[0], dtype=torch.bool, device=molecule["pos"].device)
         molecule["fixed_node_type"] = torch.ones(molecule["node_type"].shape[0], dtype=torch.bool, device=molecule["node_type"].device)
         molecule["fixed_halfedge_type"] = torch.ones(molecule["halfedge_type"].shape[0], dtype=torch.bool, device=molecule["halfedge_type"].device)
+        molecule["fixed_halfdist"] = torch.zeros(molecule["halfedge_type"].shape[0], device=molecule["halfedge_type"].device)
         return self.sample(molecule, pocket)
 
-    def predict_sbdd(self, 
+    def predict_structure_based_drug_design(self, 
         pocket: Featurized[Pocket]
     ) -> List[Molecule]:
-        dummy_molecule = self.create_dummy_molecule(pocket)
-        return self.sample(dummy_molecule, pocket)
+        molecule = self.create_dummy_molecule(pocket)
+        molecule["fixed_pos"] = torch.zeros(molecule["pos"].shape[0], dtype=torch.bool, device=molecule["pos"].device)
+        molecule["fixed_node_type"] = torch.zeros(molecule["node_type"].shape[0], dtype=torch.bool, device=molecule["node_type"].device)
+        molecule["fixed_halfedge_type"] = torch.zeros(molecule["halfedge_type"].shape[0], dtype=torch.bool, device=molecule["halfedge_type"].device)
+        molecule["fixed_halfdist"] = torch.zeros(molecule["halfedge_type"].shape[0], device=molecule["halfedge_type"].device)
+        return self.sample(molecule, pocket)

@@ -54,6 +54,14 @@ def enumerate_pdb_lines(file: str) -> Dict[str, Any]:
             elif line[0:6].strip() == 'ENDMDL':
                 break   # Some PDBs have more than 1 model.
 
+class Residue(dict):
+    def __init__(self, name: str=None, atoms: list[int]=None, chain: int=0, segment: int=0, chain_res_id: int=0) -> None:
+        self.name = name
+        self.atoms = atoms
+        self.chain = chain
+        self.segment = segment
+        self.chain_res_id = chain_res_id
+
 class Protein(dict):
     def __init__(self) -> None:
         super().__init__()
@@ -97,37 +105,37 @@ class Protein(dict):
                 "pos": np.array([data['x'], data['y'], data['z']]),
                 "atom_name": data['atom_name'],
                 "atomic_number": ptable.GetAtomicNumber(data['element_symb']),
-                "weight": ptable.GetAtomicWeight(),
+                "weight": ptable.GetAtomicWeight(data['element_symb']),
                 "aa_type": AA_NAME_NUMBER[data['res_name']],
                 "is_backbone": data['atom_name'] in BACKBONE_NAMES,
             })
 
             chain_res_id = '%s_%s_%d_%s' % (data['chain'], data['segment'], data['res_id'], data['res_insert_id'])
             if chain_res_id not in residues_tmp:
-                residues_tmp[chain_res_id] = {
+                residues_tmp[chain_res_id] = Residue(**{
                     'name': data['res_name'],
                     'atoms': [len(protein.all_atom) - 1],
                     'chain': data['chain'],
                     'segment': data['segment'],
                     'chain_res_id': chain_res_id
-                }
+                })
             else:
-                assert residues_tmp[chain_res_id]['name'] == data['res_name']
-                assert residues_tmp[chain_res_id]['chain'] == data['chain']
-                residues_tmp[chain_res_id]['atoms'].append(len(protein.all_atom) - 1)
+                assert residues_tmp[chain_res_id].name == data['res_name']
+                assert residues_tmp[chain_res_id].chain == data['chain']
+                residues_tmp[chain_res_id].atoms.append(len(protein.all_atom) - 1)
         
         protein.sequence = ""
         for residue in residues_tmp.values():
             protein.residues.append(residue)
-            protein.sequence += residue["name"]
+            protein.sequence += residue.name
             sum_pos, sum_mass = np.zeros([3], dtype=np.float32), 0
-            for atom_idx in residue['atoms']:
+            for atom_idx in residue.atoms:
                 atom = protein.all_atom[atom_idx]
                 sum_pos += atom["pos"] * atom["weight"]
                 sum_mass += atom["weight"]
-                if atom["name"] in BACKBONE_NAMES:
-                    protein.residues[-1]['pos_%s' % atom["name"]] = atom["pos"]
-            protein.residues[-1]["center_of_mass"] = sum_pos / sum_mass
+                if atom["atom_name"] in BACKBONE_NAMES:
+                    protein.residues[-1].__setattr__('pos_%s' % atom["atom_name"], atom["pos"])
+            protein.residues[-1].center_of_mass = sum_pos / sum_mass
         
         return protein
 
