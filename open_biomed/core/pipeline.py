@@ -15,6 +15,7 @@ import torch
 from tqdm import tqdm
 
 from open_biomed.core.callbacks import RecoverCallback, GradientClip
+from open_biomed.data import Molecule, Protein, Pocket
 from open_biomed.tasks import TASK_REGISTRY
 from open_biomed.utils.config import Config, Struct, merge_config
 from open_biomed.utils.distributed import setup_outputs_for_distributed
@@ -235,6 +236,7 @@ class InferencePipeline(Pipeline):
         logging_level: str="info",
         device: str="cpu",
         output_prompt: str="",
+        retry_limit: int=10,
     ) -> None:
         super().__init__()
 
@@ -246,6 +248,7 @@ class InferencePipeline(Pipeline):
         self.best_batch_size = 1
         self.best_batch_size_defined = False
         self.output_prompt = output_prompt
+        self.retry_limit = retry_limit
 
         # Prepare task
         if self.cfg.task not in TASK_REGISTRY:
@@ -309,11 +312,37 @@ class InferencePipeline(Pipeline):
         else:
             batch_size = num_samples
         
-        outputs = []
+        outputs = [None for i in range(num_samples)]
         for i in tqdm(range((num_samples - 1) // batch_size + 1), desc="Inference Steps"):
             # Generate a output text that both LLM and experts can understand
-            inputs = featurized[i * batch_size: (i + 1) * batch_size]
-            batch_output = self.model.predict(self.model.transfer_batch_to_device(self.collator(inputs), self.cfg.device, 0))
-            for output in batch_output:
-                outputs.append(self.output_prompt.format(output=output, **kwargs))
-        return outputs
+            retry_times = 0
+            retry_idx = range(i * batch_size, (i + 1) * batch_size)
+            while retry_times < self.retry_limit and len(retry_idx) > 0:
+                inputs = [featurized[idx] for idx in retry_idx]
+                batch_output = self.model.predict(self.model.transfer_batch_to_device(self.collator(inputs), self.cfg.device, 0))
+                new_retry_idx = []
+                for j, output in enumerate(batch_output):
+                    if output is None:
+                        # Generation failure, restart
+                        new_retry_idx.append(retry_idx[j])
+                    else:
+                        outputs[i * batch_size + retry_idx[j]] = output
+                retry_idx = new_retry_idx
+                retry_times += 1
+
+        # Save molecules and proteins
+        files = []
+        for i, output in enumerate(outputs):
+            timestamp = int(datetime.datetime.now().timestamp() * 1000)
+            file = ""
+            if isinstance(output, Molecule):
+                file = f"./tmp/mol_{timestamp}_{i}.pkl"
+                output.save_binary(file)
+            if isinstance(output, Protein):
+                file = f"./tmp/mol_{timestamp}_{i}.pkl"
+                output.save_binary(file)
+            if isinstance(output, Pocket):
+                file = f"./tmp/pocket_{timestamp}_{i}.pkl"
+                output.save_binary(file)
+            files.append(file)
+        return [self.output_prompt.format(output=output, **kwargs) for output in outputs], files

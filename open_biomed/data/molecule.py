@@ -3,6 +3,7 @@ from typing_extensions import Self
 
 import copy
 import numpy as np
+import pickle
 from rdkit import Chem, DataStructs, RDLogger
 RDLogger.DisableLog("rdApp.*")
 from rdkit.Chem import AllChem, MACCSkeys
@@ -42,6 +43,9 @@ class Molecule:
         molecule = cls()
         molecule.rdmol = rdmol
         molecule.smiles = Chem.MolToSmiles(rdmol)
+        conformer = rdmol.GetConformer()
+        if conformer is not None:
+            molecule.conformer = np.array(conformer.GetPositions())
         return molecule
 
     @classmethod
@@ -65,15 +69,14 @@ class Molecule:
         # initialize a molecule with a image file
         pass
 
+    @classmethod
+    def from_binary_file(cls, file: str) -> Self:
+        return pickle.load(open(file, "rb"))
+
     @staticmethod
     def convert_smiles_to_rdmol(smiles: str, canonical: bool=True) -> RWMol:
         # Convert the smiles string into rdkit mol
         # If the smiles is invalid, raise MolConstructError
-        pass
-
-    @staticmethod
-    def convert_rdmol_to_graph(rdmol: RWMol) -> Graph:
-        # Convert rdkit mol into a (pyg) graph with atom type [N] and edge index [M, 2] 
         pass
 
     @staticmethod
@@ -96,10 +99,9 @@ class Molecule:
             return
         if base == 'smiles':
             self.rdmol = Chem.MolFromSmiles(self.smiles)
-
-    def _add_graph(self, base: str='rdmol') -> None:
-        # Add class property: graph, based on smiles / selfies / rdmol, default: rdmol
-        pass
+        if self.conformer is not None:
+            conf = mol_array_to_conformer(self.conformer)
+            self.rdmol.AddConformer(conf)
 
     def _add_conformer(self, method: str='mmff', num_conformers: int=1, base: str='rdmol') -> None:
         # Add class property: conformer, based on smiles / selfies / rdmol, default: rdmol
@@ -113,9 +115,13 @@ class Molecule:
         # Add class property: kg_accession, based on smiles / selfies / rdmol, default: smiles
         pass
 
-    def to_file(self, file: str, format: str='binary') -> None:
-        # Save the molecule to a file with a format, default: binary
-        pass
+    def save_sdf(self, file: str) -> None:
+        writer = Chem.SDWriter(file)
+        self._add_rdmol()
+        writer.write(self.rdmol)
+
+    def save_binary(self, file: str) -> None:
+        pickle.dump(self, open(file, "wb"))
 
     def __str__(self) -> str:
         return self.smiles
@@ -152,6 +158,7 @@ def check_identical_molecules(mol1: Molecule, mol2: Molecule) -> bool:
         return False
 
 def fix_valence(mol: Chem.RWMol) -> Tuple[Chem.RWMol, bool]:
+    # Fix valence erros in a molecule by adding electrons to N
     mol = copy.deepcopy(mol)
     fixed = False
     cnt_loop = 0
@@ -173,3 +180,9 @@ def fix_valence(mol: Chem.RWMol) -> Tuple[Chem.RWMol, bool]:
         if len(index) > 0:
             mol.GetAtomWithIdx(int(index[0])).SetFormalCharge(1)
     return mol, fixed
+
+def mol_array_to_conformer(conf: np.ndarray) -> Chem.Conformer:
+    new_conf = Chem.Conformer(conf.shape[0])
+    for i in range(conf.shape[0]):
+        new_conf.SetAtomPosition(i, tuple(conf[i]))
+    return new_conf

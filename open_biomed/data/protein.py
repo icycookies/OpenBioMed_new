@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Tuple
 from typing_extensions import Self
 
 import numpy as np
+import pickle
 from rdkit import Chem
 
 from open_biomed.data.text import Text
@@ -55,11 +56,13 @@ def enumerate_pdb_lines(file: str) -> Dict[str, Any]:
                 break   # Some PDBs have more than 1 model.
 
 class Residue(dict):
-    def __init__(self, name: str=None, atoms: list[int]=None, chain: int=0, segment: int=0, chain_res_id: int=0) -> None:
+    def __init__(self, name: str=None, atoms: list[int]=None, chain: str="A", segment: str="", res_id: int=1, res_insert_id: str="", chain_res_id: str=None) -> None:
         self.name = name
         self.atoms = atoms
         self.chain = chain
         self.segment = segment
+        self.res_id = res_id
+        self.res_insert_id = res_insert_id
         self.chain_res_id = chain_res_id
 
 class Protein(dict):
@@ -104,6 +107,7 @@ class Protein(dict):
                 "line": data['line'],
                 "pos": np.array([data['x'], data['y'], data['z']]),
                 "atom_name": data['atom_name'],
+                "occupancy": data['occupancy'],
                 "atomic_number": ptable.GetAtomicNumber(data['element_symb']),
                 "weight": ptable.GetAtomicWeight(data['element_symb']),
                 "aa_type": AA_NAME_NUMBER[data['res_name']],
@@ -117,6 +121,8 @@ class Protein(dict):
                     'atoms': [len(protein.all_atom) - 1],
                     'chain': data['chain'],
                     'segment': data['segment'],
+                    'res_id': data['res_id'],
+                    'res_insert_id': data['res_insert_id'],
                     'chain_res_id': chain_res_id
                 })
             else:
@@ -138,6 +144,10 @@ class Protein(dict):
             protein.residues[-1].center_of_mass = sum_pos / sum_mass
         
         return protein
+
+    @classmethod
+    def from_binary_file(file: str) -> Self:
+        return pickle.load(open(file, "rb"))
 
     @staticmethod
     def folding(sequence: str, method: str='esmfold') -> np.ndarray:
@@ -175,6 +185,15 @@ class Protein(dict):
         # Add class property: kg_accession, based sequence
         pass
 
-    def to_file(self, file: str, format: str='pdb') -> None:
-        # Save the protein to a file with a certain format, default: pdb
-        pass
+    def save_binary(self, file: str) -> None:
+        pickle.dump(self, open(file, "wb"))
+
+    def save_pdb(self, file: str) -> None:
+        # Save the protein as a pdb file
+        atom_cnt = 0
+        with open(file, "w") as f:
+            for residue in self.residues:
+                for atom_id in residue.atoms:
+                    atom = self.all_atom[atom_id]
+                    atom_cnt += 1
+                    f.write(f"ATOM  {atom_cnt:5}  {atom['atom_name']:<3} {residue.name:3} {residue.chain:1}{residue.res_id:4}{residue.res_insert_id:1}   {atom['pos'][0]:8.3f}{atom['pos'][1]:8.3f}{atom['pos'][2]:8.3f}{atom.get('occupancy', 1.00):6.2f}{atom.get('temp_factor', 0.00):6.2f}           {atom['atom_name'][0]}\n")

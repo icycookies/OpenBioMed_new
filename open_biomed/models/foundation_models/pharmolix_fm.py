@@ -79,10 +79,10 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
             "is_peptide": is_peptide,
         })
 
-    def decode(self, preds: Dict[str, torch.Tensor], pocket: Optional[Pocket]) -> Optional[Molecule]:
+    def decode(self, preds: Dict[str, torch.Tensor], pocket_center: Optional[List[float]]) -> Optional[Molecule]:
         pos = preds["pos"] * self.pos_norm
-        if pocket is not None:
-            pos += pocket["pocket_center"]
+        if pocket_center is not None:
+            pos += pocket_center
         num_atoms = pos.shape[0]
         
         for key in preds:
@@ -94,7 +94,7 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
         for i in range(num_atoms):
             atom = Chem.Atom(self.atomic_numbers[preds["node_type"][i]])
             rdmol.AddAtom(atom)
-            atom_pos = Geometry.Point3D(*preds["pos"][i].tolist())
+            atom_pos = Geometry.Point3D(*pos[i].tolist())
             conf.SetAtomPosition(i, atom_pos)
         rdmol.AddConformer(conf)
 
@@ -145,8 +145,8 @@ class PharmolixFMPocketFeaturizer(PocketFeaturizer):
             "atom_feature": x,
             "knn_edge_index": knn_edge_index,
             "pos": pos,
-            "pocket_center": pocket_center,
-            "estimated_ligand_num_atoms": torch.tensor(estimate_ligand_atom_num(pocket)),
+            "pocket_center": pocket_center.unsqueeze(0),
+            "estimated_ligand_num_atoms": torch.tensor(estimate_ligand_atom_num(pocket)).unsqueeze(0),
         })
 
 # Model Layers
@@ -627,11 +627,11 @@ class PharmolixFM(PocketMolDockModel, StructureBasedDrugDesignModel):
         num_halfedge = (num_atoms ** 2 - num_atoms) // 2
         batch_size = num_atoms.shape[0]
         return Data(**{
-            "pos": torch.randn(num_atoms, 3) * 0.01,
+            "pos": torch.randn(num_atoms.sum().item(), 3) * 0.01,
             "node_type": torch.ones(num_atoms.sum().item(), self.num_node_types) / self.num_node_types,
             "halfedge_type": torch.ones(num_halfedge.sum().item(), self.num_edge_types) / self.num_edge_types,
             "is_peptide": torch.zeros(num_atoms.sum().item(), dtype=torch.long),
-            "halfedge_index": torch.cat([torch.triu_indices(num, num, offset=1) for num in num_atoms], dim=0),
+            "halfedge_index": torch.cat([torch.triu_indices(num, num, offset=1) for num in num_atoms], dim=1),
             "pos_batch": torch.repeat_interleave(torch.arange(batch_size), num_atoms),
             "node_type_batch": torch.repeat_interleave(torch.arange(batch_size), num_atoms),
             "halfedge_type_batch": torch.repeat_interleave(torch.arange(batch_size), num_halfedge),
@@ -728,8 +728,6 @@ class PharmolixFM(PocketMolDockModel, StructureBasedDrugDesignModel):
         pocket: Optional[Featurized[Pocket]]=None,
     ) -> List[Molecule]:
         # Initialization
-        print(molecule)
-        print(pocket)
         device = molecule['pos'].device
         
         molecule_in = {
@@ -801,7 +799,7 @@ class PharmolixFM(PocketMolDockModel, StructureBasedDrugDesignModel):
                 cur_molecule[key] = out_traj_split[i][key][-1]
             cur_molecule["node_type"] = torch.argmax(cur_molecule["node_type"], dim=-1)
             cur_molecule["halfedge_type"] = torch.argmax(cur_molecule["halfedge_type"], dim=-1)
-            out_molecules.append(self.featurizers["molecule"].decode(cur_molecule, pocket))
+            out_molecules.append(self.featurizers["molecule"].decode(cur_molecule, pocket["pocket_center"][i]))
         return out_molecules
 
     # TODO: implement training of PharMolixFM

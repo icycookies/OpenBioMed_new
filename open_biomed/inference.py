@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import argparse
 
 from open_biomed.core.pipeline import InferencePipeline
+from open_biomed.core.visualize import MoleculeVisualizer, ProteinVisualizer, ComplexVisualizer
 from open_biomed.data import Molecule, Text, Protein, Pocket
 
 def test_text_based_molecule_editing():
@@ -26,6 +27,7 @@ def test_text_based_molecule_editing():
     print(outputs[0])
 
 def test_structure_based_drug_design():
+    os.system("rm ./tmp/*.pkl")
     pipeline = InferencePipeline(
         task="structure_based_drug_design",
         model="pharmolix_fm",
@@ -41,9 +43,30 @@ def test_structure_based_drug_design():
     )
     print(outputs)
 
+def visualize_molecule():
+    os.system("rm ./tmp/*.png")
+    os.system("rm ./tmp/*.gif")
+    pipeline = MoleculeVisualizer()
+    ligand = Molecule.from_binary_file("./tmp/mol_1739178847441_0.pkl")
+    outputs = pipeline.run(
+        ligand, mode="2D", rotate=False
+    )
+    print(outputs)
+
+def visualize_complex():
+    os.system("rm ./tmp/*.png")
+    os.system("rm ./tmp/*.gif")
+    pipeline = ComplexVisualizer()
+    ligand = Molecule.from_binary_file("./tmp/mol_1739180786951_0.pkl")
+    protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
+    outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
+    print(outputs)
+
 INFERENCE_UNIT_TESTS = {
     "text_based_molecule_editing": test_text_based_molecule_editing,
     "structure_based_drug_design": test_structure_based_drug_design,
+    "visualize_molecule": visualize_molecule,
+    "visualize_complex": visualize_complex,
 }
 
 if __name__ == "__main__":
