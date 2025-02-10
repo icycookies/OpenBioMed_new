@@ -23,7 +23,7 @@ from open_biomed.utils.misc import safe_index
 
 # Featurizers
 class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
-    def __init__(self, pos_norm=1.0) -> None:
+    def __init__(self, pos_norm=1.0, num_node_types=12, num_edge_types=6) -> None:
         super().__init__()
         self.atomic_numbers = [6, 7, 8, 9, 15, 16, 17, 5, 35, 53, 34]
         self.mol_bond_types = [
@@ -34,24 +34,24 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
             Chem.rdchem.BondType.AROMATIC,
         ]
         self.pos_norm = pos_norm
+        self.num_node_types = num_node_types
+        self.num_edge_types = num_edge_types
 
     def __call__(self, molecule: Molecule) -> Dict[str, Any]:
         rdmol = molecule.rdmol
         node_type_list = []
         for atom in rdmol.GetAtoms():
             node_type_list.append(safe_index(self.atomic_numbers, atom.GetAtomicNum()))
-        node_type = torch.LongTensor(node_type_list)
+        node_type = F.one_hot(torch.LongTensor(node_type_list), num_classes=self.num_node_types).float()
         num_nodes = node_type.shape[0]
 
-        # Sample one conformer
-        idx = np.random.randint(len(molecule.conformer))
-        pos = torch.tensor(molecule.conformer[idx])
+        pos = torch.tensor(molecule.conformer).float()
         # Move to center
         pos -= pos.mean(0)
         pos /= self.pos_norm
 
         # Build halfedge
-        if len(rdmol.GetBonds() <= 0):
+        if len(rdmol.GetBonds()) <= 0:
             halfedge_index = torch.empty((2, 0), dtype=torch.long)
             halfedge_type = torch.empty(0, dtype=torch.long)
         else:
@@ -63,7 +63,7 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
                 halfedge_matrix[i, j] = bond_type
                 halfedge_matrix[j, i] = bond_type
             halfedge_index = torch.triu_indices(num_nodes, num_nodes, offset=1)
-            halfedge_type = halfedge_matrix[halfedge_index[0], halfedge_index[1]]
+            halfedge_type = F.one_hot(halfedge_matrix[halfedge_index[0], halfedge_index[1]], num_classes=self.num_edge_types).float()
         
         # Is peptide
         if getattr(molecule, "is_peptide", False):
@@ -589,7 +589,7 @@ class PharmolixFM(PocketMolDockModel, StructureBasedDrugDesignModel):
             "pocket": PharmolixFMPocketFeaturizer(model_cfg.pocket_knn, model_cfg.pos_norm),
         }
         self.collators = {
-            "molecule": PygCollator(follow_batch=["node_type", "halfedge_type"]),
+            "molecule": PygCollator(follow_batch=["pos", "node_type", "halfedge_type"]),
             "pocket": PygCollator(follow_batch=["pos"])
         }
 
@@ -800,6 +800,7 @@ class PharmolixFM(PocketMolDockModel, StructureBasedDrugDesignModel):
             cur_molecule["node_type"] = torch.argmax(cur_molecule["node_type"], dim=-1)
             cur_molecule["halfedge_type"] = torch.argmax(cur_molecule["halfedge_type"], dim=-1)
             out_molecules.append(self.featurizers["molecule"].decode(cur_molecule, pocket["pocket_center"][i]))
+            print(out_molecules[-1].conformer)
         return out_molecules
 
     # TODO: implement training of PharMolixFM

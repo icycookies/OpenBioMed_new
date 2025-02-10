@@ -22,38 +22,37 @@ BACKBONE_NAMES = ["CA", "C", "N", "O"]
 
 ptable = Chem.GetPeriodicTable()
 
-def enumerate_pdb_lines(file: str) -> Dict[str, Any]:
-    # Load and parse lines within a .pdb file
-    with open(file, "r") as f:
-        for line in f.readlines():
-            if line[0:6].strip() == 'ATOM':
-                element_symb = line[76:78].strip().capitalize()
-                if len(element_symb) == 0:
-                    element_symb = line[13:14]
-                yield {
-                    'line': line,
-                    'type': 'ATOM',
-                    'atom_id': int(line[6:11]),
-                    'atom_name': line[12:16].strip(),
-                    'res_name': line[17:20].strip(),
-                    'chain': line[21:22].strip(),
-                    'res_id': int(line[22:26]),
-                    'res_insert_id': line[26:27].strip(),
-                    'x': float(line[30:38]),
-                    'y': float(line[38:46]),
-                    'z': float(line[46:54]),
-                    'occupancy': float(line[54:60]),
-                    'segment': line[72:76].strip(),
-                    'element_symb': element_symb,
-                    'charge': line[78:80].strip(),
-                }
-            elif line[0:6].strip() == 'HEADER':
-                yield {
-                    'type': 'HEADER',
-                    'value': line[10:].strip()
-                }
-            elif line[0:6].strip() == 'ENDMDL':
-                break   # Some PDBs have more than 1 model.
+def enumerate_pdb_lines(lines: list[str]) -> Dict[str, Any]:
+    # Load and parse lines within .pdb lines 
+    for line in lines:
+        if line[0:6].strip() == 'ATOM':
+            element_symb = line[76:78].strip().capitalize()
+            if len(element_symb) == 0:
+                element_symb = line[13:14]
+            yield {
+                'line': line,
+                'type': 'ATOM',
+                'atom_id': int(line[6:11]),
+                'atom_name': line[12:16].strip(),
+                'res_name': line[17:20].strip(),
+                'chain': line[21:22].strip(),
+                'res_id': int(line[22:26]),
+                'res_insert_id': line[26:27].strip(),
+                'x': float(line[30:38]),
+                'y': float(line[38:46]),
+                'z': float(line[46:54]),
+                'occupancy': float(line[54:60]),
+                'segment': line[72:76].strip(),
+                'element_symb': element_symb,
+                'charge': line[78:80].strip(),
+            }
+        elif line[0:6].strip() == 'HEADER':
+            yield {
+                'type': 'HEADER',
+                'value': line[10:].strip()
+            }
+        elif line[0:6].strip() == 'ENDMDL':
+            break   # Some PDBs have more than 1 model.
 
 class Residue(dict):
     def __init__(self, name: str=None, atoms: list[int]=None, chain: str="A", segment: str="", res_id: int=1, res_insert_id: str="", chain_res_id: str=None) -> None:
@@ -80,8 +79,10 @@ class Protein(dict):
 
     @classmethod
     def from_fasta(cls, fasta: str) -> Self:
-        # initialize a protein with a fasta file
-        pass
+        # initialize a protein with a fasta sequence
+        protein = cls()
+        protein.sequence = fasta
+        return protein
 
     @classmethod
     def from_fasta_file(cls, fasta_file: str) -> Self:
@@ -92,10 +93,10 @@ class Protein(dict):
     def from_pdb_file(cls, pdb_file: str, removeHs: bool=True) -> Self:
         # initialize a protein with a pdb file
         # TODO: handle multi-chain inputs 
-        protein = Protein()
+        protein = cls()
         protein.residues, protein.all_atom = [], []
         residues_tmp = {}
-        for data in enumerate_pdb_lines(pdb_file):
+        for data in enumerate_pdb_lines(open(pdb_file, "r").readlines()):
             if data['type'] == 'HEADER':
                 protein.description = data['value'].lower()
                 continue

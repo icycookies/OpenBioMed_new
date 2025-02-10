@@ -56,7 +56,7 @@ class TrainValPipeline(Pipeline):
 
         # Prepare task
         if self.cfg.task not in TASK_REGISTRY:
-            raise NotImplementedError(f"{self.cfg.task} has not been implemented! Current tasks are {[task for task in TASK_REGISTRY.keys]}")
+            raise NotImplementedError(f"{self.cfg.task} has not been implemented! Current tasks are {[task for task in TASK_REGISTRY.keys()]}")
         self.task = TASK_REGISTRY[self.cfg.task]
         self.cfg.train.monitor = self.task.get_monitor_cfg()
 

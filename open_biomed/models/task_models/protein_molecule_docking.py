@@ -15,15 +15,15 @@ class PocketMolDockModel(BaseModel, ABC):
         super().__init__(model_cfg)
 
     def _add_task(self) -> None:
-        self.supported_tasks["sbdd"] = {
+        self.supported_tasks["pocket_molecule_docking"] = {
             "forward_fn": self.forward_pocket_molecule_docking,
             "predict_fn": self.predict_pocket_molecule_docking,
             "featurizer": EnsembleFeaturizer({
-                **sub_dict(self.featurizers, ["pocket"]),
+                **sub_dict(self.featurizers, ["molecule", "pocket"]),
                 "label": self.featurizers["molecule"]
             }),
             "collator": EnsembleCollator({
-                **sub_dict(self.collators, ["pocket"]),
+                **sub_dict(self.collators, ["molecule", "pocket"]),
                 "label": self.collators["molecule"]
             })
         }

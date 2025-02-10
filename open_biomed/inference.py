@@ -26,6 +26,23 @@ def test_text_based_molecule_editing():
     print(f"Input Text: {input_text}")
     print(outputs[0])
 
+def test_pocket_molecule_docking():
+    pipeline = InferencePipeline(
+        task="pocket_molecule_docking",
+        model="pharmolix_fm",
+        model_ckpt="./checkpoints/demo/pharmolix_fm.ckpt",
+        output_prompt="Designed molecule: {output}",
+        device="cuda:0"
+    )
+    protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
+    pocket = Pocket.from_protein_ref_ligand(protein, ligand)
+    outputs = pipeline.run(
+        molecule=ligand,
+        pocket=pocket,
+    )
+    print(outputs)
+
 def test_structure_based_drug_design():
     os.system("rm ./tmp/*.pkl")
     pipeline = InferencePipeline(
@@ -64,6 +81,7 @@ def visualize_complex():
 
 INFERENCE_UNIT_TESTS = {
     "text_based_molecule_editing": test_text_based_molecule_editing,
+    "pocket_molecule_docking": test_pocket_molecule_docking,
     "structure_based_drug_design": test_structure_based_drug_design,
     "visualize_molecule": visualize_molecule,
     "visualize_complex": visualize_complex,

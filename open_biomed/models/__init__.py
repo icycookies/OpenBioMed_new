@@ -33,7 +33,10 @@ MODEL_REGISTRY = {
     "molecule_property_prediction": {
         "graphmvp": GraphMVP,
     },
+    "pocket_molecule_docking": {
+        "pharmolix_fm": PharmolixFM,
+    },
     "structure_based_drug_design": {
         "pharmolix_fm": PharmolixFM,
-    }
+    },
 }
