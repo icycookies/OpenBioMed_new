@@ -12,7 +12,7 @@ def test_text_based_molecule_editing():
     pipeline = InferencePipeline(
         task="text_based_molecule_editing",
         model="molt5",
-        model_ckpt="./logs/text_based_molecule_editing/molt5-fs_mol_edit/train/checkpoints/last.ckpt",
+        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/text_based_molecule_editing/molt5-fs_mol_edit/train/checkpoints/last.ckpt",
         output_prompt="Edited molecule: {output}",
         device="cuda:0"
     )
@@ -25,6 +25,7 @@ def test_text_based_molecule_editing():
     print(f"Input SMILES: {input_smiles}")
     print(f"Input Text: {input_text}")
     print(outputs[0])
+    return pipeline
 
 def test_pocket_molecule_docking():
     pipeline = InferencePipeline(
@@ -48,17 +49,36 @@ def test_structure_based_drug_design():
     pipeline = InferencePipeline(
         task="structure_based_drug_design",
         model="pharmolix_fm",
-        model_ckpt="./checkpoints/demo/pharmolix_fm.ckpt",
+        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/pharmolix_fm.ckpt",
         output_prompt="Designed molecule: {output}",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         pocket=pocket
     )
     print(outputs)
+    return pipeline
+
+
+def test_molecule_question_answering():
+    pipeline = InferencePipeline(
+        task="molecule_question_answering",
+        model="molt5",
+        model_ckpt="/AIRvePFS/dair/wenluo/projects/OpenBioMed_new/logs/molecule_question_answering/molt5-MolQA/train/checkpoints/last.ckpt",
+        output_prompt="MQA: {output}",
+        device="cuda:0"
+    )
+    input_text="COC(=O)C1=C2Nc3ccccc3[C@@]23CC[NH+]2CC=C[C@@]([C@@H](C)O)(C1)[C@H]23, Please identify if this molecule has a role as a conjugate acid, and if so, what is its paired conjugate base?"
+    outputs = pipeline.run(
+        text=Text.from_str(input_text)
+    )
+    print(outputs)
+    return pipeline
+
+
 
 def visualize_molecule():
     os.system("rm ./tmp/*.png")
@@ -69,6 +89,7 @@ def visualize_molecule():
         ligand, mode="2D", rotate=False
     )
     print(outputs)
+    return pipeline
 
 def visualize_complex():
     os.system("rm ./tmp/*.png")
@@ -78,6 +99,7 @@ def visualize_complex():
     protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
     outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
     print(outputs)
+    return pipeline
 
 INFERENCE_UNIT_TESTS = {
     "text_based_molecule_editing": test_text_based_molecule_editing,
@@ -85,6 +107,7 @@ INFERENCE_UNIT_TESTS = {
     "structure_based_drug_design": test_structure_based_drug_design,
     "visualize_molecule": visualize_molecule,
     "visualize_complex": visualize_complex,
+    "molecule_question_answering": test_molecule_question_answering
 }
 
 if __name__ == "__main__":
