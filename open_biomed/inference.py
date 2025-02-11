@@ -79,7 +79,6 @@ def test_molecule_question_answering():
     return pipeline
 
 
-
 def visualize_molecule():
     os.system("rm ./tmp/*.png")
     os.system("rm ./tmp/*.gif")

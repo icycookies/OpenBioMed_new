@@ -14,9 +14,9 @@ import pytz
 import torch
 from tqdm import tqdm
 
-from open_biomed.core.callbacks import RecoverCallback, GradientClip
 from open_biomed.data import Molecule, Protein, Pocket
 from open_biomed.tasks import TASK_REGISTRY
+from open_biomed.utils.callbacks import RecoverCallback, GradientClip
 from open_biomed.utils.config import Config, Struct, merge_config
 from open_biomed.utils.distributed import setup_outputs_for_distributed
 from open_biomed.utils.misc import sub_batch_by_interval

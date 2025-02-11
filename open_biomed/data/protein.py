@@ -147,7 +147,7 @@ class Protein(dict):
         return protein
 
     @classmethod
-    def from_binary_file(file: str) -> Self:
+    def from_binary_file(cls, file: str) -> Self:
         return pickle.load(open(file, "rb"))
 
     @staticmethod
