@@ -800,7 +800,7 @@ class PharmolixFM(PocketMolDockModel, StructureBasedDrugDesignModel):
             cur_molecule["node_type"] = torch.argmax(cur_molecule["node_type"], dim=-1)
             cur_molecule["halfedge_type"] = torch.argmax(cur_molecule["halfedge_type"], dim=-1)
             out_molecules.append(self.featurizers["molecule"].decode(cur_molecule, pocket["pocket_center"][i]))
-            print(out_molecules[-1].conformer)
+            # print(out_molecules[-1].conformer)
         return out_molecules
 
     # TODO: implement training of PharMolixFM

@@ -31,12 +31,12 @@ def test_pocket_molecule_docking():
     pipeline = InferencePipeline(
         task="pocket_molecule_docking",
         model="pharmolix_fm",
-        model_ckpt="./checkpoints/demo/pharmolix_fm.ckpt",
+        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/pharmolix_fm.ckpt",
         output_prompt="Designed molecule: {output}",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         molecule=ligand,
@@ -83,7 +83,7 @@ def visualize_molecule():
     os.system("rm ./tmp/*.png")
     os.system("rm ./tmp/*.gif")
     pipeline = MoleculeVisualizer()
-    ligand = Molecule.from_binary_file("./tmp/mol_1739178847441_0.pkl")
+    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
     outputs = pipeline.run(
         ligand, mode="2D", rotate=False
     )
@@ -94,8 +94,8 @@ def visualize_complex():
     os.system("rm ./tmp/*.png")
     os.system("rm ./tmp/*.gif")
     pipeline = ComplexVisualizer()
-    ligand = Molecule.from_binary_file("./tmp/mol_1739180786951_0.pkl")
-    protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
+    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
     outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
     print(outputs)
     return pipeline
@@ -111,7 +111,7 @@ INFERENCE_UNIT_TESTS = {
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=str, default="text_based_molecule_editing")
+    parser.add_argument("--task", type=str, default="visualize_complex")
     args = parser.parse_args()
 
     if args.task not in INFERENCE_UNIT_TESTS:
