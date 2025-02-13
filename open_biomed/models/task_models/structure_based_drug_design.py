@@ -7,7 +7,7 @@ from open_biomed.data import Molecule, Pocket
 from open_biomed.models.base_model import BaseModel
 from open_biomed.utils.collator import EnsembleCollator
 from open_biomed.utils.config import Config
-from open_biomed.utils.featurizer import EnsembleFeaturizer
+from open_biomed.utils.featurizer import EnsembleFeaturizer, Featurized
 from open_biomed.utils.misc import sub_dict
 
 class StructureBasedDrugDesignModel(BaseModel, ABC):
@@ -30,13 +30,14 @@ class StructureBasedDrugDesignModel(BaseModel, ABC):
     
     @abstractmethod
     def forward_structure_based_drug_design(self, 
-        pocket: List[Pocket], 
-        label: List[Molecule],
+        pocket: Featurized[Pocket], 
+        label: Featurized[Molecule],
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     @abstractmethod
+    @torch.no_grad()
     def predict_structure_based_drug_design(self,
-        pocket: List[Pocket], 
+        pocket: Featurized[Pocket], 
     ) -> List[Molecule]:
         raise NotImplementedError

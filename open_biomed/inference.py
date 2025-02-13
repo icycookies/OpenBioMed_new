@@ -78,6 +78,26 @@ def test_molecule_question_answering():
     print(outputs)
     return pipeline
 
+def test_mutation_explanation():
+    pipeline = InferencePipeline(
+        task="mutation_explanation",
+        model="mutaplm",
+        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/mutaplm.pth",
+        output_prompt="Mutation effect: {output}",
+        device="cuda:0"
+    )
+    # protein = Protein.from_fasta("MQPWHGKAMQRASEAGATAPKASARNARGAPMDPTESPAAPEAALPKAGKFGPARKSGSRQKKSAPDTQERPPVRATGARAKKAPQRAQDTQPSDATSAPGAEGLEPPAAREPALSRAGSCRQRGARCSTKPRPPPGPWDVPSPGLPVSAPILVRRDAAPGASKLRAVLEKLKLSRDDISTAAGMVKGVVDHLLLRLKCDSAFRGVGLLNTGSYYEHVKISAPNEFDVMFKLEVPRIQLEEYSNTRAYYFVKFKRNPKENPLSQFLEGEILSASKMLSKFRKIIKEEINDIKDTDVIMKRKRGGSPAVTLLISEKISVDITLALESKSSWPASTQEGLRIQNWLSAKVRKQLRLKPFYLVPKHAKEGNGFQEETWRLSFSHIEKEILNNHGKSKTCCENKEEKCCRKDCLKLMKYLLEQLKERFKDKKHLDKFSSYHVKTAFFHVCTQNPQDSQWDRKDLGLCFDNCVTYFLQCLRTEKLENYFIPEFNLFSSNLIDKRSKEFLTKQIEYERNNEFPVFDEF")
+    # mutation = "D95A"
+    protein = Protein.from_fasta("MTLENVLEAARHLHQTLPALSEFGNWPTDLTATGLQPRAIPATPLVQALDQPGSPRTTGLVQAIRSAAHLAHWKRTYTEAEVGADFRNRYGYFELFGPTGHFHSTQLRGYVAYWGAGLDYDWHSHQAEELYLTLAGGAVFKVDGERAFVGAEGTRLHASWQSAAMSTGDQPILTFVLWRGEGLNALPRMDAA")
+    mutation = "H163A"
+    function = Text.from_str("Able to cleave dimethylsulfonioproprionate (DMSP) in vitro, releasing dimethyl sulfide (DMS). DMS is the principal form by which sulfur is transported from oceans to the atmosphere. The real activity of the protein is however subject to debate and it is unclear whether it constitutes a real dimethylsulfonioproprionate lyase in vivo: the very low activity with DMSP as substrate suggests that DMSP is not its native substrate.")
+    outputs = pipeline.run(
+        wild_type=protein,
+        mutation=mutation,
+        #function=function,
+    )
+    print(outputs)
+    return pipeline
 
 def visualize_molecule():
     os.system("rm ./tmp/*.png")
@@ -106,7 +126,8 @@ INFERENCE_UNIT_TESTS = {
     "structure_based_drug_design": test_structure_based_drug_design,
     "visualize_molecule": visualize_molecule,
     "visualize_complex": visualize_complex,
-    "molecule_question_answering": test_molecule_question_answering
+    "molecule_question_answering": test_molecule_question_answering,
+    "mutation_explanation": test_mutation_explanation,
 }
 
 if __name__ == "__main__":

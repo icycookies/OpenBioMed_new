@@ -30,6 +30,9 @@ class PygCollator(Collator):
     def __call__(self, inputs: List[Data]) -> Batch:
         return Batch.from_data_list(inputs, follow_batch=self.follow_batch, exclude_keys=self.exclude_keys)
 
+class ListCollator(Collator):
+    def __call__(self, inputs: List[Any]) -> Any:
+        return inputs
 
 class ClassLabelCollator(Collator):
     def __call__(self, inputs: List[Any]) -> Any:

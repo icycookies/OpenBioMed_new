@@ -252,7 +252,7 @@ class InferencePipeline(Pipeline):
 
         # Prepare task
         if self.cfg.task not in TASK_REGISTRY:
-            raise NotImplementedError(f"{self.cfg.task} has not been implemented! Current tasks are {[task for task in TASK_REGISTRY.keys]}")
+            raise NotImplementedError(f"{self.cfg.task} has not been implemented! Current tasks are {[task for task in TASK_REGISTRY]}")
         self.task = TASK_REGISTRY[self.cfg.task]
 
         # Prepare logging
@@ -272,7 +272,12 @@ class InferencePipeline(Pipeline):
         self.model = self.task.get_model_wrapper(self.cfg.model, None)
         self.featurizer, self.collator = self.model.get_featurizer()
         state_dict = torch.load(open(self.cfg.model_ckpt, "rb"), map_location="cpu")
-        self.model.load_state_dict(state_dict["state_dict"], strict=False)
+        if "state_dict" in state_dict:
+            state_dict = state_dict["state_dict"]
+        if hasattr(self.model.model, "load_ckpt"):
+            self.model.model.load_ckpt(state_dict)
+        else:
+            self.model.load_state_dict(state_dict, strict=False)
         self.model.model.eval()
         self.model.to(self.cfg.device)
 

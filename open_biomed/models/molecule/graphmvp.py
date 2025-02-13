@@ -389,8 +389,9 @@ class GraphMVP(MoleculePropertyPredictionModel):
         loss = torch.sum(loss_mat) / torch.sum(is_valid)
         return {"loss":loss}
 
+    @torch.no_grad()
     def predict_molecule_property_prediction(self,
         molecule
-        ) -> Dict[str, torch.Tensor]:
+    ) -> Dict[str, torch.Tensor]:
         pred = self.encode_mol(molecule)
         return pred

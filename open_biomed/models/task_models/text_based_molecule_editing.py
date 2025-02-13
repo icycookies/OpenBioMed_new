@@ -7,7 +7,7 @@ from open_biomed.data import Molecule, Text
 from open_biomed.models.base_model import BaseModel
 from open_biomed.utils.collator import EnsembleCollator
 from open_biomed.utils.config import Config
-from open_biomed.utils.featurizer import EnsembleFeaturizer
+from open_biomed.utils.featurizer import EnsembleFeaturizer, Featurized
 from open_biomed.utils.misc import sub_dict
 
 class TextBasedMoleculeEditingModel(BaseModel, ABC):
@@ -30,15 +30,16 @@ class TextBasedMoleculeEditingModel(BaseModel, ABC):
     
     @abstractmethod
     def forward_text_based_molecule_editing(self, 
-        molecule: List[Molecule], 
-        text: List[Text],
-        label: List[Molecule],
+        molecule: Featurized[Molecule], 
+        text: Featurized[Text],
+        label: Featurized[Molecule],
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     @abstractmethod
+    @torch.no_grad()
     def predict_text_based_molecule_editing(self,
-        molecule: List[Molecule], 
-        text: List[Text],
+        molecule: Featurized[Molecule], 
+        text: Featurized[Text],
     ) -> List[Molecule]:
         raise NotImplementedError

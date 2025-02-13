@@ -1,8 +1,9 @@
 from open_biomed.models.foundation_models.molt5 import MolT5
 from open_biomed.models.foundation_models.biot5 import BioT5
 from open_biomed.models.foundation_models.biot5_plus import BioT5_PLUS
-from open_biomed.models.foundation_models.graphmvp import GraphMVP
+from open_biomed.models.molecule.graphmvp import GraphMVP
 from open_biomed.models.foundation_models.pharmolix_fm import PharmolixFM
+from open_biomed.models.protein.mutaplm.mutaplm import MutaPLM
 
 MODEL_REGISTRY = {
     "text_based_molecule_editing": {
@@ -39,4 +40,10 @@ MODEL_REGISTRY = {
     "structure_based_drug_design": {
         "pharmolix_fm": PharmolixFM,
     },
+    "mutation_explanation": {
+        "mutaplm": MutaPLM,
+    },
+    "mutation_engineering": {
+        "mutaplm": MutaPLM,
+    }
 }

@@ -24,7 +24,7 @@ class MutationExplanation(BaseTask):
 
     @staticmethod
     def get_callbacks(callback_cfg: Optional[Config]=None) -> pl.Callback:
-        return MutationExplanationCallback()
+        return MutationExplanationEvaluationCallback()
 
     @staticmethod
     def get_monitor_cfg() -> Struct:
@@ -34,7 +34,7 @@ class MutationExplanation(BaseTask):
             mode="max",
         )
 
-class MutationExplanationCallback(TextOverlapEvalCallback):
+class MutationExplanationEvaluationCallback(TextOverlapEvalCallback):
     def __init__(self) -> None:
         super().__init__(tokenizer_type=None)
 
@@ -53,3 +53,32 @@ class MutationExplanationCallback(TextOverlapEvalCallback):
                 logging.info(f"Protein: {self.eval_dataset.protein[i]}")
                 logging.info(f"Predict: {self.outputs[i]}")
                 logging.info(f"Ground Truth: {out_labels}")
+
+class MutationEngineering(BaseTask):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @staticmethod
+    def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
+        return DefaultDataModule("mutation_engineering", dataset_cfg, featurizer, collator)
+
+    @staticmethod
+    def get_model_wrapper(model_cfg: Config, train_cfg: Config) -> pl.LightningModule:
+        return DefaultModelWrapper("mutation_engineering", model_cfg, train_cfg)
+
+    @staticmethod
+    def get_callbacks(callback_cfg: Optional[Config]=None) -> pl.Callback:
+        return MutationEngineeringEvaluationCallback()
+
+    @staticmethod
+    def get_monitor_cfg() -> Struct:
+        return Struct(
+            name="val/recall@50",
+            output_str="-Recall@50_{val/recall@50:.4f}-Accuracy_{val/accuracy:.4f}",
+            mode="max",
+        )
+
+# TODO: implement mutation engineering
+class MutationEngineeringEvaluationCallback(pl.Callback):
+    def __init__(self) -> None:
+        super().__init__()

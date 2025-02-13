@@ -60,6 +60,7 @@ class MoleculePropertyPredictionModel(BaseModel, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    @torch.no_grad()
     def predict_molecule_property_prediction(self,
         molecule
     ) -> Dict[str, torch.Tensor]:

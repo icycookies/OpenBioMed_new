@@ -29,19 +29,22 @@ class PocketMolDockModel(BaseModel, ABC):
         }
     
     @abstractmethod
-    def forward_pocket_molecule_docking(self, 
+    def forward_pocket_molecule_docking(self,
+        molecule: Featurized[Molecule], 
         pocket: Featurized[Pocket], 
         label: Featurized[Molecule],
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     @abstractmethod
+    @torch.no_grad()
     def predict_pocket_molecule_docking(self,
         molecule: Featurized[Molecule],
         pocket: Featurized[Pocket], 
     ) -> List[Molecule]:
         raise NotImplementedError
 
+#TODO: implement blind docking
 class BlindMolDockModel(BaseModel, ABC):
     def __init__(self, model_cfg: Config) -> None:
         super().__init__(model_cfg)
