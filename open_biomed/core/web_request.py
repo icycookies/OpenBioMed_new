@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import Any
+from typing import Any, Dict, List, Optional
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -109,30 +109,26 @@ class PDBRequester(DBRequester):
         protein.save_pdb(pdb_file)
         return pkl_file
 
-class MSARequester():
+class MMSeqsRequester():
     def __init__(self, 
-        host: str="https://api.colabfold.com", 
-        mode: str="all",
+        host: str="https://api.colabfold.com/", 
+        job_url_suffix: str="",
         timeout: int=30
     ) -> None:
         super().__init__()
         self.host = host
-        self.mode = mode
+        self.job_url_suffix = job_url_suffix
         self.timeout = timeout
 
     @RateLimiter(max_calls=5, period=1)
-    async def submit_job(self, protein: Protein) -> str:
-        fasta = f">1\n{protein.sequence}\n"
+    async def submit_job(self, data: Dict[str, Any]) -> str:
         content = {"status": "UNKNOWN"}
         while True:
             try:
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
                     async with session.post(
-                        url=f"{self.host}/ticket/msa",
-                        data={
-                            "q": fasta,
-                            "mode": self.mode
-                        }
+                        url=f"{self.host}/ticket{self.job_url_suffix}",
+                        data=data,
                     ) as response:
                         if response.status == 200:
                             content = await response.read()
@@ -149,10 +145,10 @@ class MSARequester():
                 raise e
         
         if content["status"] == "ERROR":
-            raise Exception(f'MMseqs2 API is giving errors. Please confirm your input is a valid protein sequence. If error persists, please try again an hour later.')
+            raise Exception(f'Web API is giving errors. Please confirm your input is valid. If error persists, please try again an hour later.')
 
         if content["status"] == "MAINTENANCE":
-            raise Exception(f'MMseqs2 API is undergoing maintenance. Please try again in a few minutes.')
+            raise Exception(f'Web API is undergoing maintenance. Please try again in a few minutes.')
 
         return content["id"]
 
@@ -186,7 +182,6 @@ class MSARequester():
     
     @RateLimiter(max_calls=5, period=1)
     async def download(self, id: str="") -> str:
-        timestamp = int(datetime.now().timestamp() * 1000)
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
                 async with session.get(
@@ -194,8 +189,7 @@ class MSARequester():
                 ) as response:
                     if response.status == 200:
                         content = await response.read()
-                        tar_file = f"./tmp/msa_results_{timestamp}.tar.gz"
-                        with open(tar_file, "wb") as f: f.write(content)
+                        return content
                     else:
                         logging.warning(f"HTTP request failed, status {response.status}")
                         raise Exception()
@@ -203,22 +197,81 @@ class MSARequester():
             content = None
             logging.error(f"Web request failed. Exception: {e}")
             raise e
-        return tar_file
+
+class MSARequester(MMSeqsRequester):
+    def __init__(self, 
+        host: str="https://api.colabfold.com", 
+        mode: str="all",
+        timeout: int=30
+    ) -> None:
+        super().__init__(host=host, job_url_suffix="/msa", timeout=timeout)
+        self.mode = mode
 
     async def run(self, protein: Protein="") -> str:
+        fasta = f">1\n{protein.sequence}\n"
+        data = {
+            "q": fasta,
+            "mode": self.mode,
+        }
         while True:
-            id = await self.submit_job(protein)
+            id = await self.submit_job(data)
             logging.info(f"Request id: {id}")
             status = await self.wait_finish(id)
             if status == "COMPLETE":
                 break
-        tar_file = await self.download(id)
+        content = await self.download(id)
+        timestamp = int(datetime.now().timestamp() * 1000)
+        tar_file = f"./tmp/msa_results_{timestamp}.tar.gz"
+        with open(tar_file, "wb") as f: f.write(content)
         logging.info(f"File saved at {tar_file}")
         with tarfile.open(tar_file) as tar_gz:
             folder_name = tar_file.rstrip(".tar.gz")
             os.makedirs(folder_name, exist_ok=True)
             tar_gz.extractall(folder_name)
         return f"./tmp/{folder_name}/uniref.a3m"
+
+class FoldSeekRequester(MMSeqsRequester):
+    def __init__(self, 
+        host: str="https://search.foldseek.com/api", 
+        mode: str="3diaa",
+        database: List[str]=["BFVD", "afdb50", "afdb-swissprot", "afdb-proteome", "bfmd", "cath50", "mgnify_esm30", "pdb100", "gmgcl_id"],
+        timeout: int=60
+    ) -> None:
+        super().__init__(host, "", timeout)
+        self.mode = mode
+        self.database = database
+
+    async def run(self, protein: Protein="") -> str:
+        timestamp = int(datetime.now().timestamp() * 1000)
+        pdb_file = f"./tmp/protein_{timestamp}.pdb"
+        protein.save_pdb(pdb_file)
+        form_data = aiohttp.FormData()
+        form_data.add_field("mode", self.mode)
+        for db in self.database:
+            form_data.add_field("database[]", db)
+        # Add the file field (open file in binary mode)
+        f = open(pdb_file, 'rb')
+        form_data.add_field('q', f, filename=pdb_file, content_type='application/octet-stream')
+
+        try:
+            while True:
+                id = await self.submit_job(form_data)
+                logging.info(f"Request id: {id}")
+                status = await self.wait_finish(id)
+                if status == "COMPLETE":
+                    logging.info("Task completed. Try downloading...")
+                    break
+            content = await self.download(id)
+        finally:
+            f.close()
+        tar_file = f"./tmp/foldseek_results_{timestamp}.tar.gz"
+        with open(tar_file, "wb") as f: f.write(content)
+        logging.info(f"File saved at {tar_file}")
+        with tarfile.open(tar_file) as tar_gz:
+            folder_name = tar_file.rstrip(".tar.gz")
+            os.makedirs(folder_name, exist_ok=True)
+            tar_gz.extractall(folder_name)
+        return f"./tmp/{folder_name}"
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -239,8 +292,13 @@ if __name__ == "__main__":
 
     requester = ChemBLRequester()
     asyncio.run(requester.run("CHEMBL941"))
-    """
-
     requester = MSARequester()
     asyncio.run(requester.run(Protein.from_binary_file("./tmp/uniprot_P0DTC2.pkl")))
     #asyncio.run(requester.run(Protein.from_fasta("MMVEVRFFGPIKEENFFIKANDLKELRAILQEKEGLKEWLGVCAIALNDHLIDNLNTPLKDGDVISLLPPVCGG")))
+
+    requester = FoldSeekRequester(database=["afdb50"])
+    asyncio.run(requester.run(Protein.from_pdb_file("./tmp/demo_foldseek.pdb")))
+    """
+
+    requester = PDBRequester("https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb")
+    asyncio.run(requester.run("A0A2E8J446"))

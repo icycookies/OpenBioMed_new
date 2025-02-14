@@ -99,6 +99,22 @@ def test_mutation_explanation():
     print(outputs)
     return pipeline
 
+def test_mutation_engineering():
+    pipeline = InferencePipeline(
+        task="mutation_engineering",
+        model="mutaplm",
+        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/mutaplm.pth",
+        output_prompt="Designed mutation: {output}",
+        device="cuda:1"
+    )
+    protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
+    prompt = Text.from_str("Strongly enhanced InsP6 kinase activity. The mutation in the ITPK protein causes a change in its catalytic activity.")
+    outputs = pipeline.run(
+        wild_type=protein,
+        prompt=prompt
+    )
+    print(outputs)
+
 def visualize_molecule():
     os.system("rm ./tmp/*.png")
     os.system("rm ./tmp/*.gif")
@@ -128,6 +144,7 @@ INFERENCE_UNIT_TESTS = {
     "visualize_complex": visualize_complex,
     "molecule_question_answering": test_molecule_question_answering,
     "mutation_explanation": test_mutation_explanation,
+    "mutation_engineering": test_mutation_engineering,
 }
 
 if __name__ == "__main__":

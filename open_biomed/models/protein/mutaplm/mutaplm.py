@@ -100,7 +100,7 @@ class MutaPLMEngineeringFeaturizer(Featurizer):
         )
         featurized["prompt"] = self.text_tokenizer(
             prompt.str,
-            max_length=self.max_length_label,
+            max_length=self.max_length_prompt,
             truncation=True,
             add_special_tokens=False,
         )
@@ -211,8 +211,8 @@ class MutaPLM(MutationExplanationModel, MutationEngineeringModel):
             "wild_type": DataCollatorWithPadding(self.protein_tokenizer, padding=True),
             "mutant": DataCollatorWithPadding(self.protein_tokenizer, padding=True),
             "label": ListCollator(),
-            "gt_function": DataCollatorWithPadding(self.protein_tokenizer, padding=False), 
-            "stage2_prompt": DataCollatorWithPadding(self.protein_tokenizer, padding=False),
+            "gt_function": DataCollatorWithPadding(self.llm_tokenizer, padding=False), 
+            "stage2_prompt": DataCollatorWithPadding(self.llm_tokenizer, padding=False),
         })
         
     def featurizer_mutation_engineering(self) -> Tuple[Featurizer, Collator]:
@@ -224,12 +224,12 @@ class MutaPLM(MutationExplanationModel, MutationEngineeringModel):
             self.config.text_maxlen,
         ), EnsembleCollator({
             "wild_type": DataCollatorWithPadding(self.protein_tokenizer, padding=True),
-            "prompt": ListCollator(),
+            "prompt": DataCollatorWithPadding(self.llm_tokenizer, padding=False),
             "label": EnsembleCollator({
                 "pos": ClassLabelCollator(),
                 "aa": ClassLabelCollator(),
             }),
-            "gt_function": ListCollator()
+            "gt_function": DataCollatorWithPadding(self.llm_tokenizer, padding=False),
         })
 
     def maybe_autocast(self, device="cuda:0", dtype=torch.bfloat16):
@@ -382,10 +382,10 @@ class MutaPLM(MutationExplanationModel, MutationEngineeringModel):
                 if mutation_description is not None:
                     mut_eff_embeds = input_emb(mutation_description.input_ids[i])
                     soft_embeds = self.soft_tokens.to(device)
-                    regress_start_id = sys_embeds.shape[1] + self.config.num_query_tokens_protein1 + 4 + func_embeds.shape[1] + mut_eff_embeds.shape[1]
+                    regress_start_id = sys_embeds.shape[1] + self.config.num_query_tokens_protein1 + 4 + func_embeds.shape[0] + mut_eff_embeds.shape[0]
                     wrapped_embeds = torch.cat([
                         bos_embeds, sys_embeds, bop_embeds, protein1_embeds[i].unsqueeze(0), eop_embeds, 
-                        func_embeds, mut_eff_embeds.unsqueeze(0),
+                        func_embeds.unsqueeze(0), mut_eff_embeds.unsqueeze(0),
                         bom_embeds, soft_embeds
                     ], dim=1)
                     regress_ids = torch.cat([
@@ -440,7 +440,7 @@ class MutaPLM(MutationExplanationModel, MutationEngineeringModel):
                 )
                 outputs_function[outputs_function == 0] = 2 # convert output id 0 to 2 (eos_token_id)
                 outputs_function = self.llm_tokenizer.batch_decode(outputs_function)
-                print(outputs_function)
+                logging.info(f"Predicted function: {outputs_function}")
                 outputs_function = self.llm_tokenizer(
                     outputs_function,
                     max_length=self.config.func_maxlen,
@@ -490,35 +490,45 @@ class MutaPLM(MutationExplanationModel, MutationEngineeringModel):
                     **self.config.text_generation.todict(),
                 )
                 outputs_function[outputs_function == 0] = 2 # convert output id 0 to 2 (eos_token_id)
+                outputs_function = self.llm_tokenizer.batch_decode(outputs_function)
+                logging.info(f"Predicted function: {outputs_function}")
+                outputs_function = self.llm_tokenizer(
+                    outputs_function,
+                    max_length=self.config.func_maxlen,
+                    padding=False,
+                    truncation=True,
+                    return_tensors='pt', 
+                    add_special_tokens=False,
+                ).to(device)
             else:
                 outputs_function = gt_function
 
-        # stage 2
-        input_embeds, attn_mask, soft_ids = self._wrapped_sentence_inference(protein1_embeds=protein_embeds, predict_function=outputs_function, mutation_description=prompt)
-        soft_output = self.llm.model(
-            inputs_embeds=input_embeds,
-            attention_mask=attn_mask,
-            output_hidden_states=True,
-            return_dict=True
-        ).hidden_states[-1]
-        soft_output = soft_output[soft_ids].contiguous()
-        soft_output = self.proj_text(soft_output.view(wild_type.input_ids.shape[0], self.config.num_query_tokens_protein2, -1))
-        scores = self.protein_model.lm_design(
-            input_ids=wild_type.input_ids,
-            attention_mask=wild_type.attention_mask,
-            encoder_hidden_states=soft_output,
-            encoder_attention_mask=torch.ones(soft_output.shape[:-1], dtype=torch.long).to(device)
-        )
-        outputs = []
-        for i in range(scores.shape[0]):
-            if position is None:
-                top50 = scores[i].topk(50).indices
-                pred_pos = top50 // len(self.protein_tokenizer)
-                pred_aa = top50 % len(self.protein_tokenizer)
-            else:
-                pred_pos = position[i].repeat(len(self.protein_tokenizer))
-                pred_aa = scores[i][position[i]].sort(descending=True).indices
-            wt_aa = self.protein_tokenizer.batch_decode(wild_type[i][pred_pos])
-            pred_aa = self.protein_tokenizer.batch_decode(pred_aa)
-            outputs.append([f"{wt_aa[j]}{int(pred_pos[j] + 1)}{pred_aa[j]}" for j in range(50)])
-        return outputs
+            # stage 2
+            input_embeds, attn_mask, soft_ids = self._wrapped_sentence_inference(protein1_embeds=protein_embeds, predicted_function=outputs_function.input_ids, mutation_description=prompt)
+            soft_output = self.llm.model(
+                inputs_embeds=input_embeds,
+                attention_mask=attn_mask,
+                output_hidden_states=True,
+                return_dict=True
+            ).hidden_states[-1]
+            soft_output = soft_output[soft_ids].contiguous()
+            soft_output = self.proj_text(soft_output.view(wild_type.input_ids.shape[0], self.config.num_query_tokens_protein2, -1))
+            scores = self.protein_model.lm_design(
+                input_ids=wild_type.input_ids,
+                attention_mask=wild_type.attention_mask,
+                encoder_hidden_states=soft_output,
+                encoder_attention_mask=torch.ones(soft_output.shape[:-1], dtype=torch.long).to(device)
+            )
+            outputs = []
+            for i in range(scores.shape[0]):
+                if position is None:
+                    top50 = scores[i].flatten().topk(50).indices
+                    pred_pos = top50 // len(self.protein_tokenizer)
+                    pred_aa = top50 % len(self.protein_tokenizer)
+                else:
+                    pred_pos = position[i].repeat(len(self.protein_tokenizer))
+                    pred_aa = scores[i][position[i]].sort(descending=True).indices
+                wt_aa = self.protein_tokenizer.batch_decode(wild_type.input_ids[i][pred_pos])
+                pred_aa = self.protein_tokenizer.batch_decode(pred_aa)
+                outputs.append([f"{wt_aa[j]}{int(pred_pos[j])}{pred_aa[j]}" for j in range(50)])
+            return outputs

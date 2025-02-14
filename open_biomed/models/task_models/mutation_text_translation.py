@@ -50,7 +50,7 @@ class MutationEngineeringModel(BaseModel, ABC):
 
     def _add_task(self) -> None:
         featurizer, collator = self.featurizer_mutation_engineering()
-        self.supported_tasks["mutation_explanation"] = {
+        self.supported_tasks["mutation_engineering"] = {
             "forward_fn": self.forward_mutation_engineering,
             "predict_fn": self.predict_mutation_engineering,
             "featurizer": featurizer,

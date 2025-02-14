@@ -41,10 +41,10 @@ def enumerate_pdb_lines(lines: list[str]) -> Dict[str, Any]:
                 'x': float(line[30:38]),
                 'y': float(line[38:46]),
                 'z': float(line[46:54]),
-                'occupancy': float(line[54:60]),
-                'segment': line[72:76].strip(),
+                'occupancy': float(line[54:60]) if len(line) >= 60 else 1.0,
+                'segment': line[72:76].strip() if len(line) >= 76 else "",
                 'element_symb': element_symb,
-                'charge': line[78:80].strip(),
+                'charge': line[78:80].strip() if len(line) >= 80 else "",
             }
         elif line[0:6].strip() == 'HEADER':
             yield {
