@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from functools import wraps
 import torch
-from transformers import AutoTokenizer, BatchEncoding
+from transformers import AutoTokenizer, BatchEncoding, EsmTokenizer
 
 from open_biomed.data import Molecule, Protein, Pocket, Text
 
@@ -95,6 +95,35 @@ class TextTransformersFeaturizer(TextFeaturizer):
             truncation=True, 
             add_special_tokens=self.add_special_tokens,
         )
+
+class ProteinFeaturizer(Featurizer):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @abstractmethod
+    def __call__(self, protein: Protein) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def get_attrs(self) -> List[str]:
+        return ["protein"]
+
+class ProteinEsmFeaturizer(ProteinFeaturizer):
+    def __init__(self,
+        model_name_or_path: str,
+        max_length: int=1024,
+        add_special_tokens: bool=True,
+    ) -> None:
+        super().__init__()
+        self.tokenizer = EsmTokenizer.from_pretrained(model_name_or_path, model_max_length=max_length, truncation=True)
+        self.add_special_tokens = add_special_tokens
+
+    def __call__(self, protein: Protein) -> Dict[str, Any]:
+        return self.tokenizer(
+            protein.sequence,
+            truncation=True,
+            add_special_tokens=self.add_special_tokens,
+        )
+    
 
 class PocketFeaturizer(Featurizer):
     def __init__(self) -> None:

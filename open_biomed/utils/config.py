@@ -28,7 +28,7 @@ class Struct:
 
 
 class Config:
-    def __init__(self, config_file, **kwargs):
+    def __init__(self, config_file=None, **kwargs):
         if config_file is not None:
             _config = parse_config(path=config_file, subs_dict=kwargs)
         else:

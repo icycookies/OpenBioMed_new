@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
+from enum import Enum, auto
 
 import torch
 
@@ -40,4 +41,37 @@ class TextEncoder(BaseModel, ABC):
 
     @abstractmethod
     def encode_text(self, text: Union[List[Text], Any]) -> torch.Tensor:
+        raise NotImplementedError
+
+class ChatModel(BaseModel, ABC):
+    class Role(Enum):
+        USER = auto()
+        ASSISTANT = auto()
+
+    role_dict = {
+        Role.USER: "USER",
+        Role.ASSISTANT: "ASSISTANT",
+    }
+    def __init__(self, model_cfg: Config) -> None:
+        super().__init__(model_cfg)
+        self.messages = []
+
+    def add_message(self, role: Role, message: Optional[str]) -> None:
+        self.messages.append([role, message])
+
+    def compose_context(self):
+        ret = self.config.system_prompt + self.config.sep_tokens + " "
+        for role, message in self.messages:
+            if message:
+                ret += self.role_dict[role]  + ": " + message + " " + self.config.sep_tokens + " "
+            else:
+                ret += self.role_dict[role] + ": "
+        return ret
+
+    @abstractmethod
+    def chat(self, user_prompt: Text) -> Text:
+        raise NotImplementedError
+
+    @abstractmethod
+    def reset(self) -> None:
         raise NotImplementedError

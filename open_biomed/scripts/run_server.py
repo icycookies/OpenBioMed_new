@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import uvicorn
 
 # import function
-from open_biomed.inference import test_text_based_molecule_editing, test_structure_based_drug_design, test_molecule_question_answering, visualize_molecule, visualize_complex
+from open_biomed.scripts.inference import test_text_based_molecule_editing, test_structure_based_drug_design, test_molecule_question_answering, visualize_molecule, visualize_complex
 from open_biomed.data import Molecule, Text, Protein, Pocket
 
 app = FastAPI()

@@ -123,6 +123,10 @@ class Molecule:
     def save_binary(self, file: str) -> None:
         pickle.dump(self, open(file, "wb"))
 
+    def get_num_atoms(self) -> None:
+        self._add_rdmol()
+        return self.rdmol.GetNumAtoms()
+
     def __str__(self) -> str:
         return self.smiles
 

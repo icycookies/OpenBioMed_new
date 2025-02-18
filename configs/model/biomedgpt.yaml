@@ -1,0 +1,21 @@
+model:
+  name: biomedgpt
+  molecule:
+    gin_hidden_dim: 300
+    gin_num_layers: 5
+    drop_ratio: 0
+    max_n_nodes: 256
+  protein:
+    model_name_or_path: ./checkpoints/esm2/3b
+    use_float16: true
+    seq_max_length: 1024
+  llm:
+    model_name_or_path: ./checkpoints/biomedgpt-lm
+    use_float16: true
+  text_generation:
+    num_beams: 2
+    max_length: 512
+    min_length: 1
+    repetition_penalty: 1.5
+    length_penalty: 1
+    temperature: 0
