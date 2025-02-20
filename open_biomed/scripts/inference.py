@@ -7,6 +7,7 @@ import argparse
 from open_biomed.core.pipeline import InferencePipeline
 from open_biomed.core.visualize import MoleculeVisualizer, ProteinVisualizer, ComplexVisualizer
 from open_biomed.data import Molecule, Text, Protein, Pocket
+from open_biomed.core.oss_warpper import oss_warpper
 
 def test_text_based_molecule_editing():
     pipeline = InferencePipeline(
@@ -124,7 +125,9 @@ def visualize_molecule():
     outputs = pipeline.run(
         ligand, config="ball_and_stick", rotate=False
     )
-    print(outputs)
+    oss_file_path = oss_warpper.generate_file_name(outputs)
+    url = oss_warpper.upload(oss_file_path, outputs)
+    print(url)
     return pipeline
 
 def visualize_protein():
@@ -143,9 +146,13 @@ def visualize_complex():
     # ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
     ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
     protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-    outputs = pipeline.run(molecule=ligand, protein=protein, molecule_config="ball_and_stick", protein_config="cartoon", rotate=False)
-    print(outputs)
+
+    outputs = pipeline.run(molecule=ligand, protein=protein, molecule_config="ball_and_stick", protein_config="cartoon", rotate=True)
+    oss_file_path = oss_warpper.generate_file_name(outputs)
+    url = oss_warpper.upload(oss_file_path, outputs)
+    print(url)
     return pipeline
+
 
 INFERENCE_UNIT_TESTS = {
     "text_based_molecule_editing": test_text_based_molecule_editing,

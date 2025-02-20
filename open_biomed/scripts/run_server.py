@@ -5,6 +5,7 @@ import uvicorn
 # import function
 from open_biomed.scripts.inference import test_text_based_molecule_editing, test_structure_based_drug_design, test_molecule_question_answering, visualize_molecule, visualize_complex
 from open_biomed.data import Molecule, Text, Protein, Pocket
+from open_biomed.utils.utils import oss_warpper
 
 app = FastAPI()
 
@@ -78,6 +79,8 @@ async def run_pipeline(request: TaskRequest):
                 status_code=400, detail="ligand_pkl_path are required for visualize_molecule task")
         ligand = Molecule.from_binary_file(input_data["ligand_pkl_path"])
         outputs = pipeline.run(ligand, mode="2D", rotate=False)
+        oss_file_path = oss_warpper.generate_file_name(loutputs)
+        outputs = oss_warpper.upload(oss_file_path, outputs)
     elif task_name == "visualize_complex":
         pipeline = pipelines["visualize_complex"]
         required_inputs = ["protein_pdb_path", "ligand_pkl_path"]
@@ -87,6 +90,8 @@ async def run_pipeline(request: TaskRequest):
         ligand = Molecule.from_binary_file(input_data["ligand_pkl_path"])
         protein = Protein.from_pdb_file(input_data["protein_pdb_path"])
         outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
+        oss_file_path = oss_warpper.generate_file_name(loutputs)
+        outputs = oss_warpper.upload(oss_file_path, outputs)
     else:
         raise HTTPException(status_code=400, detail="Invalid task_name")
 
