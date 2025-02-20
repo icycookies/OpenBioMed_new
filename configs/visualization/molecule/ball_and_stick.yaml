@@ -1,0 +1,5 @@
+molecule:
+  mode: 3D
+  show: [sticks, spheres]
+  sphere_scale: 0.2
+  stick_radius: 0.2

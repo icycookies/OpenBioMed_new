@@ -1,0 +1,7 @@
+protein:
+  show: [cartoon, sticks, spheres]
+  color: grey
+  cartoon_transparency: 0.4
+  sphere_scale: 0.2
+  stick_radius: 0.2
+  cnc: True

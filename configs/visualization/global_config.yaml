@@ -1,0 +1,5 @@
+width: 800
+height: 600
+dpi: 300
+background_color: white
+ray_opaque_background: 1

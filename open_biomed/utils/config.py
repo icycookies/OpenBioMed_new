@@ -235,7 +235,7 @@ def parse_config(
     else:
         raise ValueError("Either a path or data should be defined as input")
 
-def merge_config(cfg1: Config, cfg2: Config) -> None:
+def merge_config(cfg1: Config, cfg2: Config) -> Config:
     # Combine config values in cfg2 into cfg
     # NOTE: the values in cfg2 will overwrite those in cfg1 for overlapping keys
     def recursive_merge(cfg1: Struct, cfg2: Struct) -> None:
@@ -244,7 +244,8 @@ def merge_config(cfg1: Config, cfg2: Config) -> None:
                 recursive_merge(cfg1.__dict__[key], cfg2.__dict__[key])
             else:
                 cfg1.__dict__[key] = value
-    recursive_merge(cfg1, cfg2)
+        return cfg1
+    return recursive_merge(cfg1, cfg2)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

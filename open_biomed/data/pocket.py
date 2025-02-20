@@ -29,6 +29,7 @@ class Pocket:
     def __init__(self) -> None:
         self.atoms = None
         self.conformer = None
+        self.orig_indices = None         # Which part of the protein it belongs to
 
     @classmethod
     def from_protein_subregion(cls, protein: Protein, center: List[float], radius: float=10.0) -> Self:
@@ -54,6 +55,7 @@ class Pocket:
                 pocket.atoms.append(atom)
                 pocket.conformer.append(atom['pos'])
         pocket.conformer = np.array(pocket.conformer)
+        pocket.orig_indices = indices
         return pocket
 
     @classmethod

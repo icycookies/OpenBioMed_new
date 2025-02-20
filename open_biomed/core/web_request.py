@@ -55,10 +55,7 @@ class PubChemRequester(DBRequester):
         with open(sdf_file, "w") as f:
             f.write(outputs)
         molecule = Molecule.from_sdf_file(sdf_file)
-        pkl_file = f"./tmp/pubchem_{accession}.pkl"
-        molecule.save_binary(pkl_file)
-        molecule.save_sdf(sdf_file)
-        return pkl_file
+        return molecule.save_binary()
 
 class ChemBLRequester(DBRequester):
     def __init__(self, 
@@ -73,10 +70,7 @@ class ChemBLRequester(DBRequester):
         with open(sdf_file, "w") as f:
             f.write(obj["molecules"][0]["molecule_structures"]["molfile"])
         molecule = Molecule.from_sdf_file(sdf_file)
-        pkl_file = f"./tmp/chembl_{accession}.pkl"
-        molecule.save_binary(pkl_file)
-        molecule.save_sdf(sdf_file)
-        return pkl_file
+        return molecule.save_binary()
 
 class UniProtRequester(DBRequester):
     def __init__(self, 
@@ -88,9 +82,8 @@ class UniProtRequester(DBRequester):
     def _parse_and_save_outputs(self, accession: str="", outputs: str="") -> str:
         obj = json.loads(outputs)
         protein = Protein.from_fasta(obj["sequence"]["value"])
-        pkl_file = f"./tmp/uniprot_{accession}.pkl"
-        protein.save_binary(pkl_file)
-        return pkl_file
+        protein.name = f"uniprot_{accession}"
+        return protein.save_binary()
 
 class PDBRequester(DBRequester):
     def __init__(self, 
@@ -104,10 +97,7 @@ class PDBRequester(DBRequester):
         with open(pdb_file, "w") as f:
             f.write(outputs)
         protein = Protein.from_pdb_file(pdb_file)
-        pkl_file = f"./tmp/pdb_{accession}.pkl"
-        protein.save_binary(pkl_file)
-        protein.save_pdb(pdb_file)
-        return pkl_file
+        return protein.save_binary()
 
 class MMSeqsRequester():
     def __init__(self, 
@@ -292,13 +282,14 @@ if __name__ == "__main__":
 
     requester = ChemBLRequester()
     asyncio.run(requester.run("CHEMBL941"))
+
     requester = MSARequester()
     asyncio.run(requester.run(Protein.from_binary_file("./tmp/uniprot_P0DTC2.pkl")))
     #asyncio.run(requester.run(Protein.from_fasta("MMVEVRFFGPIKEENFFIKANDLKELRAILQEKEGLKEWLGVCAIALNDHLIDNLNTPLKDGDVISLLPPVCGG")))
+    """
 
     requester = FoldSeekRequester(database=["afdb50"])
-    asyncio.run(requester.run(Protein.from_pdb_file("./tmp/demo_foldseek.pdb")))
-    """
+    asyncio.run(requester.run(Protein.from_pdb_file("./tmp/demo/foldseek.pdb")))
 
     requester = PDBRequester("https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb")
     asyncio.run(requester.run("A0A2E8J446"))

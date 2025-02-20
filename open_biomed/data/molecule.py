@@ -1,8 +1,10 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import Self
 
 import copy
+from datetime import datetime
 import numpy as np
+import os
 import pickle
 from rdkit import Chem, DataStructs, RDLogger
 RDLogger.DisableLog("rdApp.*")
@@ -17,6 +19,8 @@ from open_biomed.utils.exception import MoleculeConstructError
 class Molecule:
     def __init__(self) -> None:
         super().__init__()
+        self.name = None
+
         # basic properties: 1D SMILES/SELFIES strings, RDKit mol object, 2D graphs, 3D coordinates
         self.smiles = None
         self.selfies = None
@@ -62,6 +66,7 @@ class Molecule:
                 molecule = Molecule.from_rdmol(mol)
                 conformer = mol.GetConformer()
                 molecule.conformer = np.array(conformer.GetPositions())
+        molecule.name = sdf_file.split("/")[-1].strip(".sdf")
         return molecule
 
     @classmethod
@@ -84,6 +89,10 @@ class Molecule:
         # Generate 3D conformer with algorithms in RDKit
         # TODO: identify if ML-based conformer generation can be applied
         pass
+
+    def _add_name(self) -> None:
+        if self.name is None:
+            self.name = "mol_" + re.sub(r"[-:.]", "_", datetime.now().isoformat(sep="_", timespec="milliseconds"))
 
     def _add_smiles(self, base: str='rdmol') -> None:
         # Add class property: smiles, based on selfies / rdmol / graph, default: rdmol
@@ -115,13 +124,25 @@ class Molecule:
         # Add class property: kg_accession, based on smiles / selfies / rdmol, default: smiles
         pass
 
-    def save_sdf(self, file: str) -> None:
-        writer = Chem.SDWriter(file)
-        self._add_rdmol()
-        writer.write(self.rdmol)
+    def save_sdf(self, file: Optional[str]=None, overwrite: bool=False) -> str:
+        if file is None:
+            self._add_name()
+            file = f"./tmp/{self.name}.sdf"
 
-    def save_binary(self, file: str) -> None:
-        pickle.dump(self, open(file, "wb"))
+        if not os.path.exists(file) or overwrite:
+            writer = Chem.SDWriter(file)
+            self._add_rdmol()
+            writer.write(self.rdmol)
+        return file
+
+    def save_binary(self, file: Optional[str]=None, overwrite: bool=False) -> str:
+        if file is None:
+            self._add_name()
+            file = f"./tmp/{self.name}.pkl"
+
+        if not os.path.exists(file) or overwrite:
+            pickle.dump(self, open(file, "wb"))
+        return file
 
     def get_num_atoms(self) -> None:
         self._add_rdmol()

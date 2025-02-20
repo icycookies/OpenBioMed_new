@@ -119,10 +119,20 @@ def visualize_molecule():
     os.system("rm ./tmp/*.png")
     os.system("rm ./tmp/*.gif")
     pipeline = MoleculeVisualizer()
-    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
+    #ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
+    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
     outputs = pipeline.run(
-        ligand, mode="2D", rotate=False
+        ligand, config="ball_and_stick", rotate=False
     )
+    print(outputs)
+    return pipeline
+
+def visualize_protein():
+    os.system("rm ./tmp/*.png")
+    os.system("rm ./tmp/*.gif")
+    pipeline = ProteinVisualizer()
+    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
+    outputs = pipeline.run(protein=protein, config="cartoon", rotate=False)
     print(outputs)
     return pipeline
 
@@ -130,9 +140,10 @@ def visualize_complex():
     os.system("rm ./tmp/*.png")
     os.system("rm ./tmp/*.gif")
     pipeline = ComplexVisualizer()
-    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
+    # ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
+    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
     protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-    outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
+    outputs = pipeline.run(molecule=ligand, protein=protein, molecule_config="ball_and_stick", protein_config="cartoon", rotate=False)
     print(outputs)
     return pipeline
 
@@ -141,6 +152,7 @@ INFERENCE_UNIT_TESTS = {
     "pocket_molecule_docking": test_pocket_molecule_docking,
     "structure_based_drug_design": test_structure_based_drug_design,
     "visualize_molecule": visualize_molecule,
+    "visualize_protein": visualize_protein,
     "visualize_complex": visualize_complex,
     "molecule_question_answering": test_molecule_question_answering,
     "mutation_explanation": test_mutation_explanation,

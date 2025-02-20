@@ -1,9 +1,12 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import Self
 
+from datetime import datetime
 import numpy as np
+import os
 import pickle
 from rdkit import Chem
+import re
 
 from open_biomed.data.text import Text
 from open_biomed.utils.exception import ProteinConstructError
@@ -67,6 +70,8 @@ class Residue(dict):
 class Protein(dict):
     def __init__(self) -> None:
         super().__init__()
+        self.name = None
+
         # basic properties: 1D sequence, 3D coordinates
         self.sequence = None
         self.residues = None           # Backbone residues
@@ -94,6 +99,7 @@ class Protein(dict):
         # initialize a protein with a pdb file
         # TODO: handle multi-chain inputs 
         protein = cls()
+        protein.name = pdb_file.split("/")[-1].rstrip(".pdb")
         protein.residues, protein.all_atom = [], []
         residues_tmp = {}
         for data in enumerate_pdb_lines(open(pdb_file, "r").readlines()):
@@ -134,7 +140,7 @@ class Protein(dict):
         protein.sequence = ""
         for residue in residues_tmp.values():
             protein.residues.append(residue)
-            protein.sequence += residue.name
+            protein.sequence += AA_NAME_SYM[residue.name]
             sum_pos, sum_mass = np.zeros([3], dtype=np.float32), 0
             for atom_idx in residue.atoms:
                 atom = protein.all_atom[atom_idx]
@@ -170,6 +176,10 @@ class Protein(dict):
         # Calculate chi-angles with all-atom coordinates
         pass
 
+    def _add_name(self) -> None:
+        if self.name is None:
+            self.name = "protein_" + re.sub(r"[-:.]", "_", datetime.now().isoformat(sep="_", timespec="milliseconds"))
+
     def _add_sequence(self, base: str='backbone') -> None:
         # Add class property: sequence, based on backbone
         pass
@@ -186,15 +196,27 @@ class Protein(dict):
         # Add class property: kg_accession, based sequence
         pass
 
-    def save_binary(self, file: str) -> None:
-        pickle.dump(self, open(file, "wb"))
+    def save_binary(self, file: Optional[str]=None, overwrite: bool=False) -> str:
+        if file is None:
+            self._add_name()
+            file = f"./tmp/{self.name}.pkl"
 
-    def save_pdb(self, file: str) -> None:
+        if not os.path.exists(file) or overwrite:
+            pickle.dump(self, open(file, "wb"))
+        return file
+
+    def save_pdb(self, file: Optional[str]=None, overwrite: bool=False) -> str:
         # Save the protein as a pdb file
-        atom_cnt = 0
-        with open(file, "w") as f:
-            for residue in self.residues:
-                for atom_id in residue.atoms:
-                    atom = self.all_atom[atom_id]
-                    atom_cnt += 1
-                    f.write(f"ATOM  {atom_cnt:5}  {atom['atom_name']:<3} {residue.name:3} {residue.chain:1}{residue.res_id:4}{residue.res_insert_id:1}   {atom['pos'][0]:8.3f}{atom['pos'][1]:8.3f}{atom['pos'][2]:8.3f}{atom.get('occupancy', 1.00):6.2f}{atom.get('temp_factor', 0.00):6.2f}           {atom['atom_name'][0]}\n")
+        if file is None:
+            self._add_name()
+            file = f"./tmp/{self.name}.pdb"
+
+        if not os.path.exists(file) or overwrite:
+            atom_cnt = 0
+            with open(file, "w") as f:
+                for residue in self.residues:
+                    for atom_id in residue.atoms:
+                        atom = self.all_atom[atom_id]
+                        atom_cnt += 1
+                        f.write(f"ATOM  {atom_cnt:5}  {atom['atom_name']:<3} {residue.name:3} {residue.chain:1}{residue.res_id:4}{residue.res_insert_id:1}   {atom['pos'][0]:8.3f}{atom['pos'][1]:8.3f}{atom['pos'][2]:8.3f}{atom.get('occupancy', 1.00):6.2f}{atom.get('temp_factor', 0.00):6.2f}           {atom['atom_name'][0]}\n")
+        return file
