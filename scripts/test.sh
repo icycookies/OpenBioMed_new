@@ -4,7 +4,7 @@ TASK=$1
 MODEL=$2
 DATASET=$3
 
-python open_biomed/train.py \
+python open_biomed/scripts/train.py \
 --task $TASK \
 --additional_config_file configs/model/$MODEL.yaml \
 --dataset_name $DATASET \

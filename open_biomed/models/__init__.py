@@ -26,6 +26,9 @@ MODEL_REGISTRY = {
         "biot5": BioT5,
         "biot5_plus": BioT5_PLUS
     },
+    "text_based_protein_generation": {
+        "biot5": BioT5,
+    },
     "protein_question_answering": {
         "molt5": MolT5,
         "biot5": BioT5,

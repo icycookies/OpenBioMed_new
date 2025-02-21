@@ -52,6 +52,7 @@ class BaseDataset(Dataset, ABC):
         raise NotImplementedError
 
     @abstractmethod
+    @assign_split
     def split(self, split_cfg: Optional[Config]=None) -> Tuple[Any, Any, Any]:
         raise NotImplementedError
 

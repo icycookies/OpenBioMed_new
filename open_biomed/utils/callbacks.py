@@ -7,9 +7,10 @@ import numpy as np
 import os
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+import re
 import torch
 
-from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from nltk.translate.meteor_score import meteor_score
 from rouge_score import rouge_scorer
 from transformers import BertTokenizerFast
@@ -132,10 +133,10 @@ class TextOverlapEvalCallback(pl.Callback):
         self.eval_dataset = None
         self.tokenizer_type = tokenizer_type
         if tokenizer_type == "BERT":
-            abs_path = os.path.abspath("./open_biomed/checkpoints/tokenizers/bert-base-uncased/")
+            abs_path = os.path.abspath("./checkpoints/tokenizers/bert-base-uncased/")
             self.tokenizer = BertTokenizerFast.from_pretrained(abs_path)
             self.filter_tokens = ["[PAD]", "[CLS]", "[SEP]"]
-        if tokenizer_type is None:
+        if tokenizer_type == "every" or tokenizer_type is None:
             self.tokenizer = None
             self.filter_tokens = []
 
@@ -163,15 +164,15 @@ class TextOverlapEvalCallback(pl.Callback):
         scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'])
 
         gts = self.eval_dataset.labels
-        output_tokens = []
-        gt_tokens = []
         meteor_scores = []
         rouge_scores_1 = []
         rouge_scores_2 = []
         rouge_scores_L = []
-
+        bleu2, bleu4 = [], []
         for i in range(len(self.outputs)):
-            orig_mol = self.eval_dataset.molecules[i]
+            if self.tokenizer_type == "every":
+                self.outputs[i] = " ".join([x for x in str(self.outputs[i])])
+                gts[i] = " ".join([x for x in str(gts[i])])
             rouge = scorer.score(str(self.outputs[i]), str(gts[i]))
             rouge_scores_1.append(rouge['rouge1'].fmeasure)
             rouge_scores_2.append(rouge['rouge2'].fmeasure)
@@ -180,29 +181,21 @@ class TextOverlapEvalCallback(pl.Callback):
             if self.tokenizer_type == "BERT":
                 output_token = self.tokenizer.tokenize(str(self.outputs[i]), truncation=True, max_length=512, padding='max_length')
                 gt_token = self.tokenizer.tokenize(str(gts[i]), truncation=True, max_length=512, padding='max_length')
-            elif self.tokenizer_type is None:
-                output_token = output_token.split(" ")
-                gt_token = gt_token.split(" ")
+            elif self.tokenizer_type == "every" or self.tokenizer_type is None:
+                output_token = str(self.outputs[i]).split(" ")
+                gt_token = str(gts[i]).split(" ")
             for token in self.filter_tokens:
-                output_token = list(filter((token).__ne__), output_token)
-                gt_token = list(filter((token).__ne__), gt_token)
-            output_tokens.append(output_token)
-            gt_tokens.append(gt_token)
-            meteor_scores.append(meteor_score(gt_tokens[i], output_tokens[i]))
-
-        bleu2 = corpus_bleu(gt_tokens, output_tokens, weights=(0.5, 0.5))
-        bleu4 = corpus_bleu(gt_tokens, output_tokens, weights=(0.25, 0.25, 0.25, 0.25))
-             
-        output_str = "\t".join([str(orig_mol), str(self.outputs[i]), 
-                                    f"{np.mean(bleu2):.4f}",  f"{np.mean(bleu4):.4f}",
-                                    f"{np.mean(rouge_scores_1):.4f}", f"{np.mean(rouge_scores_2):.4f}",
-                                    f"{np.mean(rouge_scores_L):.4f}"]) + "\n"
+                output_token = list(filter(token.__ne__, output_token))
+                gt_token = list(filter(token.__ne__, gt_token))
+            bleu2.append(sentence_bleu([gt_token], output_token, weights=(0.5, 0.5), smoothing_function=SmoothingFunction().method1))
+            bleu4.append(sentence_bleu([gt_token], output_token, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=SmoothingFunction().method1))
+            meteor_scores.append(meteor_score([gt_token], output_token))
 
         output_path = os.path.join(trainer.default_root_dir, f"{self.status}_outputs", f"epoch{pl_module.current_epoch}")
         out_metrics = {
             f"{self.status}/BLEU-2": np.mean(bleu2),
-            f"{self.status}/BLUE-4": np.mean(bleu4),
-            f"{self.status}/Meteor": np.mean(meteor_scores),
+            f"{self.status}/BLEU-4": np.mean(bleu4),
+            f"{self.status}/METEOR": np.mean(meteor_scores),
             f"{self.status}/ROUGE-1": np.mean(rouge_scores_1),
             f"{self.status}/ROUGE-2": np.mean(rouge_scores_2),
             f"{self.status}/ROUGE-L": np.mean(rouge_scores_L)
@@ -212,7 +205,11 @@ class TextOverlapEvalCallback(pl.Callback):
         json.dump(out_metrics, open(output_path + "_metrics.json", "w"))
         
         with open(output_path + "_outputs.txt", "w") as f:
-            f.write(output_str)
+            f.write("Predicted\tGround Truth\tBLEU-2\tBLEU-4\tROUGE-1\tROUGE-2\tROUGE-L\n")
+            for i in range(len(self.outputs)):
+                self.outputs[i] = re.sub(r"[\n\t]", "", str(self.outputs[i]))
+                gts[i] = re.sub(r"[\n\t]", "", str(gts[i]))
+                f.write(f"{self.outputs[i]}\t{gts[i]}\t{bleu2[i]:.4f}\t{bleu4[i]:.4f}\t{rouge_scores_1[i]:.4f}\t{rouge_scores_2[i]:.4f}\t{rouge_scores_L[i]:.4f}\n")
 
     def on_test_batch_end(self,
         trainer: pl.Trainer,

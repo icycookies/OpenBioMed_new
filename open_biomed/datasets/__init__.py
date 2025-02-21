@@ -1,8 +1,9 @@
 from open_biomed.datasets.text_based_molecule_editing_dataset import FSMolEdit
 from open_biomed.datasets.molecule_captioning_dataset import CheBI20ForMol2Text
 from open_biomed.datasets.text_guided_molecule_generation_dataset import CheBI20ForText2Mol
-from open_biomed.datasets.molecule_question_answering import MolQA
-from open_biomed.datasets.protein_question_answering import ProteinQA
+from open_biomed.datasets.protein_text_dataset import MolInstructionsForProteinDesign
+from open_biomed.datasets.molecule_question_answering import MQA
+from open_biomed.datasets.protein_question_answering import PQA
 
 from open_biomed.datasets.molecule_property_prediction_dataset import MoleculeNet
 
@@ -21,11 +22,15 @@ DATASET_REGISTRY = {
         },
     "molecule_question_answering":
         {
-            "MolQA": MolQA
+            "MQA": MQA
+        },
+    "text_based_protein_generation":
+        {
+            "Mol-Instructions": MolInstructionsForProteinDesign,
         },
     "protein_question_answering":
         {
-            "ProteinQA": ProteinQA
+            "PQA": PQA
         },
     "molecule_property_prediction":
         {

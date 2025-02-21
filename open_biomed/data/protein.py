@@ -220,3 +220,27 @@ class Protein(dict):
                         atom_cnt += 1
                         f.write(f"ATOM  {atom_cnt:5}  {atom['atom_name']:<3} {residue.name:3} {residue.chain:1}{residue.res_id:4}{residue.res_insert_id:1}   {atom['pos'][0]:8.3f}{atom['pos'][1]:8.3f}{atom['pos'][2]:8.3f}{atom.get('occupancy', 1.00):6.2f}{atom.get('temp_factor', 0.00):6.2f}           {atom['atom_name'][0]}\n")
         return file
+
+    def __len__(self) -> int:
+        if self.sequence is not None:
+            return len(self.sequence)
+        if self.residues is not None:
+            return len(self.residues)
+        raise AttributeError
+
+    def __str__(self) -> str:
+        self._add_sequence()
+        return self.sequence
+
+def protein_sequence_similarity(protein1: Protein, protein2: Protein) -> Tuple[float, str, str]:
+    from Bio.Align import PairwiseAligner, fasta
+    aligner = PairwiseAligner()
+    aligner.mode = "global"
+    aligner.match_score = 1
+    aligner.mismatch_score = 0
+    aligner.open_gap_score = 0
+    aligner.extend_gap_score = 0
+    alignment = aligner.align(protein1.sequence, protein2.sequence)[0]
+    similarity = alignment.score / (len(protein1) + len(protein2) - alignment.score)
+    output_seq = fasta.AlignmentWriter(None).format_alignment(alignment)
+    return similarity, output_seq.split("\n")[1], output_seq.split("\n")[3]

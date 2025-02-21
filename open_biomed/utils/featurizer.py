@@ -52,8 +52,8 @@ class MoleculeTransformersFeaturizer(MoleculeFeaturizer):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer, model_max_length=max_length, truncation=True)
         self.add_special_tokens = add_special_tokens
         self.base = base
-        if base not in "SMILES" and "SELFIES":
-            raise ValueError("{base} is not a valid 1D representaiton of molecules!")
+        if base not in ["SMILES", "SELFIES"]:
+            raise ValueError(f"{base} is not a valid 1D representaiton of molecules!")
 
     def __call__(self, molecule: Molecule) -> BatchEncoding:
         if self.base == "SMILES":
@@ -123,7 +123,6 @@ class ProteinEsmFeaturizer(ProteinFeaturizer):
             truncation=True,
             add_special_tokens=self.add_special_tokens,
         )
-    
 
 class PocketFeaturizer(Featurizer):
     def __init__(self) -> None:

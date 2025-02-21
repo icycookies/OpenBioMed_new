@@ -42,6 +42,14 @@ class Molecule:
         return molecule
 
     @classmethod
+    def from_selfies(cls, selfies: str) -> Self:
+        import selfies as sf
+        molecule = cls()
+        molecule.selfies = selfies
+        molecule.smiles = sf.decoder(selfies)
+        return molecule
+
+    @classmethod
     def from_rdmol(cls, rdmol: RWMol) -> Self:
         # initialize a molecule with a RDKit molecule
         molecule = cls()
@@ -99,8 +107,12 @@ class Molecule:
         pass
 
     def _add_selfies(self, base: str='smiles') -> None:
+        import selfies as sf
         # Add class property: selfies, based on smiles / selfies / rdmol / graph, default: smiles
-        pass
+        if base == "smiles":
+            self.selfies = sf.encoder(self.smiles, strict=False)
+        else:
+            raise NotImplementedError
 
     def _add_rdmol(self, base: str='smiles') -> None:
         # Add class property: rdmol, based on smiles / selfies / graph, default: smiles

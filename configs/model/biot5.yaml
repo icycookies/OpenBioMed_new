@@ -2,17 +2,18 @@ model:
   name: biot5
   hf_model_name_or_path: ./checkpoints/biot5/base
   smiles_max_length: 256
+  protein_max_length: 512
   text_max_length: 256
   predict:
     num_beams: 2
     max_length: 512
 
 dataset:
-  batch_size_train: 64
+  batch_size_train: 32
   batch_size_eval: 64
 
 train:
-  max_epochs: 2
+  max_epochs: 6
   batch_size: 64
   ckpt_freq: 2
 

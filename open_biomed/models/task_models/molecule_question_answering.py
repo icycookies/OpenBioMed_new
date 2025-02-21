@@ -7,7 +7,7 @@ from open_biomed.data import Molecule, Text
 from open_biomed.models.base_model import BaseModel
 from open_biomed.utils.collator import EnsembleCollator
 from open_biomed.utils.config import Config
-from open_biomed.utils.featurizer import EnsembleFeaturizer
+from open_biomed.utils.featurizer import EnsembleFeaturizer, Featurized
 from open_biomed.utils.misc import sub_dict
 
 class MoleculeQAModel(BaseModel, ABC):
@@ -19,25 +19,27 @@ class MoleculeQAModel(BaseModel, ABC):
             "forward_fn": self.forward_molecule_question_answering,
             "predict_fn": self.predict_molecule_question_answering,
             "featurizer": EnsembleFeaturizer({
-                **sub_dict(self.featurizers, ["text"]),
+                **sub_dict(self.featurizers, ["molecule", "text"]),
                 "label": self.featurizers["text"]
             }),
             "collator": EnsembleCollator({
-                **sub_dict(self.collators, ["text"]),
+                **sub_dict(self.collators, ["molecule", "text"]),
                 "label": self.collators["text"]
             })
         }
     
     @abstractmethod
-    def forward_molecule_question_answering(self, 
-        text: List[Text], 
-        label: List[Text],
+    def forward_molecule_question_answering(self,
+        molecule: Featurized[Molecule],
+        text: Featurized[Text], 
+        label: Featurized[Text],
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     @abstractmethod
     @torch.no_grad()
     def predict_molecule_question_answering(self,
-        text: List[Text], 
+        molecule: Featurized[Molecule],
+        text: Featurized[Text], 
     ) -> List[Text]:
         raise NotImplementedError

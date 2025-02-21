@@ -286,10 +286,12 @@ if __name__ == "__main__":
     requester = MSARequester()
     asyncio.run(requester.run(Protein.from_binary_file("./tmp/uniprot_P0DTC2.pkl")))
     #asyncio.run(requester.run(Protein.from_fasta("MMVEVRFFGPIKEENFFIKANDLKELRAILQEKEGLKEWLGVCAIALNDHLIDNLNTPLKDGDVISLLPPVCGG")))
-    """
-
     requester = FoldSeekRequester(database=["afdb50"])
     asyncio.run(requester.run(Protein.from_pdb_file("./tmp/demo/foldseek.pdb")))
 
     requester = PDBRequester("https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb")
     asyncio.run(requester.run("A0A2E8J446"))
+    """
+
+    requester = PubChemRequester(db_url="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{accession}/SDF")
+    asyncio.run(requester.run("dimethoxy-sulfanylidene-(3,5,6-trichloropyridin-2-yl)oxy-lambda5-phosphane"))
