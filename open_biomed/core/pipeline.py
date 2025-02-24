@@ -350,4 +350,7 @@ class InferencePipeline(Pipeline):
                 file = f"./tmp/pocket_{timestamp}_{i}.pkl"
                 output.save_binary(file)
             files.append(file)
-        return [self.output_prompt.format(output=output, **kwargs) for output in outputs], files
+        if self.output_prompt:
+            return [self.output_prompt.format(output=output, **kwargs) for output in outputs], files
+        else:
+            return outputs, files
