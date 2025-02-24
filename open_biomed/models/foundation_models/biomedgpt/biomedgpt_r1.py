@@ -19,7 +19,7 @@ from open_biomed.models.foundation_models.biomedgpt.modeling_llama import LlamaF
 from open_biomed.models.molecule.graphmvp import GNNGraphMVP
 from open_biomed.utils.collator import Collator, PygCollator
 from open_biomed.utils.config import Config
-from open_biomed.utils.featurizer import Featurizer, Featurized, ProteinEsmFeaturizer
+from open_biomed.utils.featurizer import Featurizer, Featurized, ProteinTransformersFeaturizer
 from open_biomed.utils.mol_featurizer import MolGraphFeaturizer
 
 class BioMedGPTR1Featurizer(Featurizer):
@@ -32,7 +32,7 @@ class BioMedGPTR1Featurizer(Featurizer):
     ) -> None:
         super().__init__()
         self.molecule_featurizer = MolGraphFeaturizer({"name": "BaseGNN"})
-        self.protein_featurizer = ProteinEsmFeaturizer(esm_tokenizer, protein_max_length)
+        self.protein_featurizer = ProteinTransformersFeaturizer(esm_tokenizer, protein_max_length)
         self.llm_tokenizer = AutoTokenizer.from_pretrained(llama_tokenizer, model_max_length=text_max_length, truncation=True, truncation_side="left")
 
         self.molecule_max_atoms = molecule_max_atoms

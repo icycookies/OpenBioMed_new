@@ -33,7 +33,7 @@ class MoleculeQA(BaseTask):
     def get_monitor_cfg() -> Struct:
         return Struct(
             name="val/ROUGE-1",
-            output_str="-BLUE-2_{val/BLUE-2:.4f}-BLUE-4_{val/BLUE-4:.4f}-BLUE-L_{val/BLUE-L:.4f}-ROUGE-1_{val/ROUGE-1:.4f}-ROUGE-2_{val/ROUGE-2:.4f}",
+            output_str="-BLEU-2_{val/BLEU-2:.4f}-BLEU-4_{val/BLEU-4:.4f}-ROUGE-1_{val/ROUGE-1:.4f}-ROUGE-2_{val/ROUGE-2:.4f}",
             mode="max",
         )
 

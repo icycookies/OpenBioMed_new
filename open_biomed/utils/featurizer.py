@@ -107,14 +107,14 @@ class ProteinFeaturizer(Featurizer):
     def get_attrs(self) -> List[str]:
         return ["protein"]
 
-class ProteinEsmFeaturizer(ProteinFeaturizer):
+class ProteinTransformersFeaturizer(ProteinFeaturizer):
     def __init__(self,
         model_name_or_path: str,
         max_length: int=1024,
         add_special_tokens: bool=True,
     ) -> None:
         super().__init__()
-        self.tokenizer = EsmTokenizer.from_pretrained(model_name_or_path, model_max_length=max_length, truncation=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, model_max_length=max_length, truncation=True)
         self.add_special_tokens = add_special_tokens
 
     def __call__(self, protein: Protein) -> Dict[str, Any]:
