@@ -144,7 +144,6 @@ def test_protein_generation():
     model = PROTEIN_DECODER_REGISTRY["progen"](config)
     model = model.to("cuda:1")
     print(model.generate_protein()[0])
-    """
     protein = Protein.from_fasta('GFLPFRGADEGLAAREAATLAARGTAARAYREDSWAVPVPRGLLGDLTARVAALGAASPPPADPLAVTLDLHHVTAEVALTTVLDAATLVHGQTRVLSAEDAAEAATAAAAATEAYLERLQDFVLFMSASVRVWRRGNAAGATGPEWDQWYTVADRDALGSAPTHLAVLGRQADALCHFVLDRVAWGTCGTPLWSGDEDLGNVVATFAGYADRLATAPRDLIM')
     protein = model.collator([model.featurizer(protein)])
     protein = {
@@ -152,7 +151,6 @@ def test_protein_generation():
         "attention_mask": protein["attention_mask"].to("cuda:1"),
     }
     print(model.generate_loss(protein))
-    """
 
 def visualize_molecule():
     #os.system("rm ./tmp/*.png")

@@ -6,11 +6,9 @@ import asyncio
 from typing import Optional
 
 # import function
-from open_biomed.scripts.inference import test_text_based_molecule_editing, test_structure_based_drug_design, test_molecule_question_answering, visualize_molecule, visualize_complex, test_molecule_property_prediction
 from open_biomed.data import Molecule, Text, Protein, Pocket
 from open_biomed.core.oss_warpper import oss_warpper
-from open_biomed.core.web_request import PubChemRequester, MSARequester, PDBRequester, UniProtRequester, WebSearchRequester
-
+from open_biomed.core.tools import TOOLS
 
 
 app = FastAPI()
@@ -95,26 +93,7 @@ class IO_Reader:
 
 # Create a dictionary to store the pipeline instance
 
-text_based_molecule_editing_pipeline = test_text_based_molecule_editing()
-structure_based_drug_design_pipeline = test_structure_based_drug_design()
-molecule_question_answering_pipeline = test_molecule_question_answering()
-visualize_complex_pipeline = visualize_complex()
-visualize_molecule_pipeline = visualize_molecule()
-pubchemrequester = PubChemRequester(db_url="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{accession}/SDF")
-websearchrequester =  WebSearchRequester()
-molecule_property_prediction_pipeline = test_molecule_property_prediction()
 
-
-pipelines = {
-    "text_based_molecule_editing": text_based_molecule_editing_pipeline,
-    "structure_based_drug_design": structure_based_drug_design_pipeline,
-    "molecule_question_answering": molecule_question_answering_pipeline,
-    "visualize_molecule": visualize_molecule_pipeline,
-    "visualize_complex": visualize_complex_pipeline,
-    "pubchemrequest": pubchemrequester,
-    "websearchrequest": websearchrequester,
-    "molecule_property_prediction": molecule_property_prediction_pipeline
-}
 
 
 @app.post("/run_pipeline/")
@@ -126,7 +105,7 @@ async def run_pipeline(request: TaskRequest):
     try:
         # Call the corresponding function based on the task name and get the pipeline instance
         if task_name == "text_based_molecule_editing":
-            pipeline = pipelines["text_based_molecule_editing"]
+            pipeline = TOOLS["text_based_molecule_editing"]
             required_inputs = ["molecule", "text"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
@@ -141,7 +120,7 @@ async def run_pipeline(request: TaskRequest):
             path = outputs[1][0]
             output = {"task": task_name, "model": model, "molecule": path, "molecule_preview": smiles}
         elif task_name == "structure_based_drug_design":
-            pipeline = pipelines["structure_based_drug_design"]
+            pipeline = TOOLS["structure_based_drug_design"]
             required_inputs = ["protein", "molecule"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
@@ -156,7 +135,7 @@ async def run_pipeline(request: TaskRequest):
             path = outputs[1][0]
             output =  {"task": task_name, "model": model, "molecule": path, "molecule_preview": smiles}
         elif task_name == "molecule_question_answering":
-            pipeline = pipelines["molecule_question_answering"]
+            pipeline = TOOLS["molecule_question_answering"]
             required_inputs = ["text"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
@@ -168,7 +147,7 @@ async def run_pipeline(request: TaskRequest):
             text = outputs[0][0].split(pipeline.output_prompt.split("{output}")[0])[1]
             output =  {"task": task_name, "model": model, "text": text}
         elif task_name == "visualize_molecule":
-            pipeline = pipelines["visualize_molecule"]
+            pipeline = TOOLS["visualize_molecule"]
             required_inputs = ["molecule"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
@@ -179,7 +158,7 @@ async def run_pipeline(request: TaskRequest):
             outputs = oss_warpper.upload(oss_file_path, outputs)
             output = {"task": task_name, "image": outputs}
         elif task_name == "visualize_complex":
-            pipeline = pipelines["visualize_complex"]
+            pipeline = TOOLS["visualize_complex"]
             required_inputs = ["protein", "molecule"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
@@ -191,7 +170,7 @@ async def run_pipeline(request: TaskRequest):
             outputs = oss_warpper.upload(oss_file_path, outputs)
             output = {"task": task_name, "image": outputs}
         elif task_name == "molecule_property_prediction":
-            pipeline = pipelines["molecule_property_prediction"]
+            pipeline = TOOLS["molecule_property_prediction"]
             required_inputs = ["molecule", "dataset"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
@@ -227,7 +206,7 @@ async def web_search(request: SearchRequest):
     # Call the corresponding function based on the task name and get the pipeline instance
     try:
         if database == "pubchem":
-            requester = pipelines["pubchemrequest"]
+            requester = TOOLS["pubchemrequest"]
             required_inputs = ["query"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
@@ -236,7 +215,7 @@ async def web_search(request: SearchRequest):
             smiles = Molecule.from_binary_file(outputs).smiles
             return {"database": database, "molecule": outputs, "molecule_preview": smiles}
         if database == "web":
-            requester = pipelines["websearchrequest"]
+            requester = TOOLS["websearchrequest"]
             required_inputs = ["query"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
