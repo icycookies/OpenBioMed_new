@@ -9,7 +9,7 @@ from typing import Optional
 from open_biomed.scripts.inference import test_text_based_molecule_editing, test_structure_based_drug_design, test_molecule_question_answering, visualize_molecule, visualize_complex, test_molecule_property_prediction
 from open_biomed.data import Molecule, Text, Protein, Pocket
 from open_biomed.core.oss_warpper import oss_warpper
-from open_biomed.core.web_request import PubChemRequester, MSARequester, PDBRequester, UniProtRequester
+from open_biomed.core.web_request import PubChemRequester, MSARequester, PDBRequester, UniProtRequester, WebSearchRequester
 
 
 
@@ -101,6 +101,7 @@ molecule_question_answering_pipeline = test_molecule_question_answering()
 visualize_complex_pipeline = visualize_complex()
 visualize_molecule_pipeline = visualize_molecule()
 pubchemrequester = PubChemRequester(db_url="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{accession}/SDF")
+websearchrequester =  WebSearchRequester()
 molecule_property_prediction_pipeline = test_molecule_property_prediction()
 
 
@@ -111,6 +112,7 @@ pipelines = {
     "visualize_molecule": visualize_molecule_pipeline,
     "visualize_complex": visualize_complex_pipeline,
     "pubchemrequest": pubchemrequester,
+    "websearchrequest": websearchrequester,
     "molecule_property_prediction": molecule_property_prediction_pipeline
 }
 
@@ -233,6 +235,14 @@ async def web_search(request: SearchRequest):
             outputs = await requester.run(request["query"])
             smiles = Molecule.from_binary_file(outputs).smiles
             return {"database": database, "molecule": outputs, "molecule_preview": smiles}
+        if database == "web":
+            requester = pipelines["websearchrequest"]
+            required_inputs = ["query"]
+            if not all(key in request for key in required_inputs):
+                raise HTTPException(
+                    status_code=400, detail="query are required for websearch task")
+            outputs = requester.run(request["query"])
+            return {"database": database, "text": outputs}
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
