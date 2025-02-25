@@ -5,9 +5,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import argparse
 
 from open_biomed.core.pipeline import InferencePipeline
+from open_biomed.core.oss_warpper import oss_warpper
 from open_biomed.core.visualize import MoleculeVisualizer, ProteinVisualizer, ComplexVisualizer
 from open_biomed.data import Molecule, Text, Protein, Pocket
-from open_biomed.core.oss_warpper import oss_warpper
+from open_biomed.tasks.aidd_tasks.protein_molecule_docking import VinaDockTask
 
 os.environ["dataset_name"] = "BBBP"
 
@@ -56,13 +57,17 @@ def test_structure_based_drug_design():
         output_prompt="Designed molecule: {output}",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("tmp/test/tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("tmp/test/tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         pocket=pocket
     )
     print(outputs)
+    predicted_molecule = Molecule.from_binary_file(outputs[1][0])
+    vina = VinaDockTask(mode="dock")
+    print(vina.run(ligand, protein)[0])
+    print(vina.run(predicted_molecule, protein)[0])
     return pipeline
 
 

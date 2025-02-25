@@ -1,8 +1,12 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import Self
 
+from datetime import datetime
 import numpy as np
+import os
+import pickle
 from rdkit import RDLogger
+import re
 RDLogger.DisableLog("rdApp.*")
 from scipy import spatial
 
@@ -57,10 +61,27 @@ class Pocket:
         pocket.conformer = np.array(pocket.conformer)
         pocket.orig_indices = indices
         return pocket
+    
+    @classmethod
+    def from_binary_file(cls, file: str) -> Self:
+        return pickle.load(open(file, "rb"))
 
     @classmethod
     def from_pdb_file(cls, pdb: str) -> Self:
         raise NotImplementedError
+
+    def _add_name(self) -> None:
+        if self.name is None:
+            self.name = "pocket_" + re.sub(r"[-:.]", "_", datetime.now().isoformat(sep="_", timespec="milliseconds"))
+
+    def save_binary(self, file: Optional[str]=None, overwrite: bool=False) -> str:
+        if file is None:
+            self._add_name()
+            file = f"./tmp/{self.name}.pkl"
+
+        if not os.path.exists(file) or overwrite:
+            pickle.dump(self, open(file, "wb"))
+        return file
 
 def estimate_ligand_atom_num(pocket: Pocket) -> int:
     dist = spatial.distance.pdist(pocket.conformer, metric='euclidean')
