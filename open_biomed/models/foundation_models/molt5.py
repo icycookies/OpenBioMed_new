@@ -11,7 +11,7 @@ from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import MoleculeTransformersFeaturizer, TextTransformersFeaturizer, Featurized
 from open_biomed.utils.misc import concatenate_tokens
 
-class MolT5(TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMoleculeGenerationModel, MoleculeQAModel, ProteinQAModel):
+class MolT5(TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMoleculeGenerationModel, MoleculeQAModel):
     def __init__(self, model_cfg: Config) -> None:
         super(MolT5, self).__init__(model_cfg)
         self.main_model = T5ForConditionalGeneration.from_pretrained(model_cfg.hf_model_name_or_path)

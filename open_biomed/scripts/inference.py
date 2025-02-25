@@ -7,7 +7,9 @@ import argparse
 from open_biomed.core.pipeline import InferencePipeline
 from open_biomed.core.visualize import MoleculeVisualizer, ProteinVisualizer, ComplexVisualizer
 from open_biomed.data import Molecule, Text, Protein, Pocket
-# from open_biomed.core.oss_warpper import oss_warpper
+from open_biomed.core.oss_warpper import oss_warpper
+
+os.environ["dataset_name"] = "BBBP"
 
 def test_text_based_molecule_editing():
     pipeline = InferencePipeline(
@@ -36,8 +38,8 @@ def test_pocket_molecule_docking():
         output_prompt="Designed molecule: {output}",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("tmp/test/tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("tmp/test/tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         molecule=ligand,
@@ -54,8 +56,8 @@ def test_structure_based_drug_design():
         output_prompt="Designed molecule: {output}",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("tmp/test/tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("tmp/test/tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         pocket=pocket
@@ -153,11 +155,10 @@ def test_protein_generation():
     """
 
 def visualize_molecule():
-    os.system("rm ./tmp/*.png")
-    os.system("rm ./tmp/*.gif")
+    #os.system("rm ./tmp/*.png")
+    #os.system("rm ./tmp/*.gif")
     pipeline = MoleculeVisualizer()
-    #ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
-    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
+    ligand = Molecule.from_binary_file("tmp/test/tmp/pubchem_240.pkl")
     outputs = pipeline.run(
         ligand, config="ball_and_stick", rotate=False
     )
@@ -176,17 +177,34 @@ def visualize_protein():
     return pipeline
 
 def visualize_complex():
-    os.system("rm ./tmp/*.png")
-    os.system("rm ./tmp/*.gif")
+    #os.system("rm ./tmp/*.png")
+    #os.system("rm ./tmp/*.gif")
     pipeline = ComplexVisualizer()
-    # ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/mol_1739255667164_0.pkl")
-    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
-    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_binary_file("tmp/test/tmp/pubchem_240.pkl")
+    protein = Protein.from_pdb_file("tmp/test/tmp/pdb_6LVN.pdb")
+    try:
+        outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
+        oss_file_path = oss_warpper.generate_file_name(outputs)
+        url = oss_warpper.upload(oss_file_path, outputs)
+        print(url)
+    except:
+        print("visualize_complex failed")
 
-    outputs = pipeline.run(molecule=ligand, protein=protein, molecule_config="ball_and_stick", protein_config="cartoon", rotate=True)
-    oss_file_path = oss_warpper.generate_file_name(outputs)
-    url = oss_warpper.upload(oss_file_path, outputs)
-    print(url)
+    return pipeline
+
+
+
+def test_molecule_property_prediction():
+    pipeline = InferencePipeline(
+        task="molecule_property_prediction",
+        model="graphmvp",
+        model_ckpt="/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/logs/molecule_property_prediction/graphmvp-BBBP/train/checkpoints/last.ckpt",
+        device="cuda:0"
+    )
+    input_smiles = "Nc1[nH]c(C(=O)c2ccccc2)c(-c2ccccn2)c1C(=O)c1c[nH]c2ccc(Br)cc12"
+    outputs = pipeline.run(
+        molecule=Molecule.from_smiles(input_smiles)
+    )
     return pipeline
 
 
@@ -202,11 +220,12 @@ INFERENCE_UNIT_TESTS = {
     "mutation_explanation": test_mutation_explanation,
     "mutation_engineering": test_mutation_engineering,
     "protein_generation": test_protein_generation,
+    "molecule_property_prediction": test_molecule_property_prediction,
 }
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=str, default="visualize_complex")
+    parser.add_argument("--task", type=str, default="text_based_molecule_editing")
     args = parser.parse_args()
 
     if args.task not in INFERENCE_UNIT_TESTS:

@@ -2,6 +2,7 @@ from abc import abstractmethod, ABC
 from typing import Any, Dict, List, Optional
 import os
 import sys
+import requests
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import aiohttp
@@ -98,6 +99,71 @@ class PDBRequester(DBRequester):
             f.write(outputs)
         protein = Protein.from_pdb_file(pdb_file)
         return protein.save_binary()
+
+class WebSearchRequester():
+
+    def __init__(self, timeout: int=30) -> None:
+        self.timeout = timeout
+
+    def run(self, query: str) -> str:
+        """
+        对应action ID: 23
+        针对问题进行检索
+        """
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer 1234567890'
+        }
+        query_url = "http://pre.chatdd.pharmolix.com/v2/api/deepinsight/generate_query"
+        data = {
+            'chat_session_id': "FwAalhadkajhddkaadfwes",
+            'action': False,
+            'chat_messages': [
+                {"role": "user", "content": f'<p>{query}</p><p><br></p>'}
+            ]
+        }
+        response = requests.post(query_url, headers=headers, json=data)
+        question = response.json()
+
+        rag_url = "http://101.200.137.30:1112/rag/v1/common_rag"
+
+        if not question['query_list']:
+            question['query_list'] = []
+        question["recall_params"] = {
+            "PaperDB": [
+                "meeting",
+                "pubmed_abstract",
+                "pubmed_full_text"
+            ],
+            "NewsDB": [
+                "press",
+                "media",
+                "wechat",
+                "wechat_realtime",
+                "press_realtime"
+            ],
+            "WebSearch": None,
+            "Clinicaltrial_DB": [
+                "clinicaltrials"
+            ],
+            "Policy_DB": [
+                "policy"
+            ],
+            "Principle_DB": [
+                "principle"
+            ],
+            "PatentLaw_DB": [
+                "patentlaw"
+            ]
+        }
+        question["top_k"] = 5
+        res = requests.post(rag_url, json=question)
+        #result = {"query": [query] + question['query_list'],
+        #          "result": res.json()["data"]}
+        #result = {"result": [i["text"] for i in res.json()["data"]]}
+        result = "/n/n/n".join([i["text"] for i in res.json()["data"]])
+        return result
+
 
 class MMSeqsRequester():
     def __init__(self, 
@@ -291,6 +357,10 @@ if __name__ == "__main__":
 
     requester = PDBRequester("https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb")
     asyncio.run(requester.run("A0A2E8J446"))
+
+    websearchrequester = WebSearchRequester()
+    qurey = "Please tell me something about diabetes"  
+    print(websearchrequester.run(qurey))
     """
 
     requester = PubChemRequester(db_url="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{accession}/SDF")
