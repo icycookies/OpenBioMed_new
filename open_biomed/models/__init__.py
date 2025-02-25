@@ -4,6 +4,7 @@ from open_biomed.models.foundation_models.biot5_plus import BioT5_PLUS
 from open_biomed.models.molecule.graphmvp import GraphMVP
 from open_biomed.models.foundation_models.pharmolix_fm import PharmolixFM
 from open_biomed.models.protein.mutaplm.mutaplm import MutaPLM
+from open_biomed.models.task_models.protein_text_translation import EnsembleTextBasedProteinGenerationModel
 
 MODEL_REGISTRY = {
     "text_based_molecule_editing": {
@@ -28,6 +29,7 @@ MODEL_REGISTRY = {
     },
     "text_based_protein_generation": {
         "biot5": BioT5,
+        "ensemble": EnsembleTextBasedProteinGenerationModel,
     },
     "protein_question_answering": {
         "molt5": MolT5,

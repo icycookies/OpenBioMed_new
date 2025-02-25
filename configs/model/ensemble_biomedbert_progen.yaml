@@ -1,0 +1,17 @@
+model:
+  name: ensemble
+  protein:
+    name: progen
+    config_file: ./configs/model/progen.yaml
+    freeze: True
+  text:
+    name: pretrainedlm
+    config_file: ./configs/model/biomedbert.yaml
+  connector:
+    input_dim: 768
+    hidden_dim: []
+    output_dim: 1536
+
+train:
+  max_epochs: 10
+  ckpt_freq: 2

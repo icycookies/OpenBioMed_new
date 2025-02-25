@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from enum import Enum, auto
 
 import torch
 
 from open_biomed.data import Molecule, Protein, Text
 from open_biomed.models.base_model import BaseModel
+from open_biomed.utils.collator import Collator
 from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import MoleculeFeaturizer, ProteinFeaturizer, TextFeaturizer, Featurized
 
@@ -14,12 +15,16 @@ class MoleculeModel(BaseModel):
         super(MoleculeModel, self).__init__(model_cfg)
 
     @abstractmethod
-    def get_molecule_featurizer(self) -> MoleculeFeaturizer:
+    def get_molecule_processor(self) -> Tuple[MoleculeFeaturizer, Collator]:
         raise NotImplementedError
 
 class MoleculeEncoder(MoleculeModel):
     def __init__(self, model_cfg: Config) -> None:
         super(MoleculeEncoder, self).__init__(model_cfg)
+
+    @abstractmethod
+    def encode_loss(self, label: Featurized[Molecule], **kwargs) -> Dict[str, torch.Tensor]:
+        raise NotImplementedError
 
     @abstractmethod
     def encode_molecule(self, molecule: Union[List[Molecule], Any]) -> torch.Tensor:
@@ -30,6 +35,10 @@ class MoleculeDecoder(MoleculeModel):
         super(MoleculeDecoder, self).__init__(model_cfg)
 
     @abstractmethod
+    def generate_loss(self, label: Featurized[Molecule], **kwargs) -> Dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    @abstractmethod
     def generate_molecule(self, **kwargs) -> List[Molecule]:
         raise NotImplementedError
 
@@ -38,7 +47,7 @@ class ProteinModel(BaseModel):
         super().__init__(model_cfg)
 
     @abstractmethod
-    def get_protein_featurizer(self) -> ProteinFeaturizer:
+    def get_protein_processor(self) -> Tuple[ProteinFeaturizer, Collator]:
         raise NotImplementedError
 
 class ProteinEncoder(ProteinModel):
@@ -46,12 +55,16 @@ class ProteinEncoder(ProteinModel):
         super().__init__(model_cfg)
 
     @abstractmethod
-    def encode_protein(self, protein: Union[Featurized[Protein], List[Protein]]) -> torch.Tensor:
+    def encode_protein(self, protein: Union[Featurized[Protein], List[Protein]], **kwargs) -> torch.Tensor:
         raise NotImplementedError
 
 class ProteinDecoder(ProteinModel):
     def __init__(self, model_cfg: Config) -> None:
         super().__init__(model_cfg)
+
+    @abstractmethod
+    def generate_loss(self, label: Featurized[Protein], **kwargs) -> Dict[str, torch.Tensor]:
+        raise NotImplementedError
 
     @abstractmethod
     def generate_protein(self, **kwargs) -> List[Protein]:
@@ -60,10 +73,9 @@ class ProteinDecoder(ProteinModel):
 class TextEncoder(BaseModel, ABC):
     def __init__(self, model_cfg: Config) -> None:
         super(TextEncoder, self).__init__(model_cfg)
-        self.text_featurizer = self.get_text_featurizer()
 
     @abstractmethod
-    def get_text_featurizer(self) -> TextFeaturizer:
+    def get_text_processor(self) -> Tuple[TextFeaturizer, Collator]:
         raise NotImplementedError
 
     @abstractmethod

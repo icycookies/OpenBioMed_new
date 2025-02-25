@@ -6,9 +6,9 @@ import sys
 import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from functools import wraps
 import torch
-from transformers import AutoTokenizer, BatchEncoding, EsmTokenizer
+from transformers import BatchEncoding, T5Tokenizer
+from transformers.tokenization_utils import PreTrainedTokenizer
 
 from open_biomed.data import Molecule, Protein, Pocket, Text
 
@@ -43,13 +43,14 @@ class MoleculeFeaturizer(Featurizer):
 
 class MoleculeTransformersFeaturizer(MoleculeFeaturizer):
     def __init__(self,
-        tokenizer: str,
+        tokenizer: PreTrainedTokenizer,
         max_length: int=512,
         add_special_tokens: bool=True,
         base: str='SMILES',
     ) -> None:
         super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer, model_max_length=max_length, truncation=True)
+        self.tokenizer = tokenizer
+        self.max_length = max_length
         self.add_special_tokens = add_special_tokens
         self.base = base
         if base not in ["SMILES", "SELFIES"]:
@@ -64,6 +65,7 @@ class MoleculeTransformersFeaturizer(MoleculeFeaturizer):
             parse_str = molecule.selfies
         return self.tokenizer(
             parse_str, 
+            max_length=self.max_length,
             truncation=True, 
             add_special_tokens=self.add_special_tokens,
         )
@@ -81,17 +83,19 @@ class TextFeaturizer(Featurizer):
 
 class TextTransformersFeaturizer(TextFeaturizer):
     def __init__(self, 
-        tokenizer: str,
+        tokenizer: PreTrainedTokenizer,
         max_length: int=512,
         add_special_tokens: bool=True,
     ) -> None:
         super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer, model_max_length=max_length, truncation=True)
+        self.tokenizer = tokenizer
+        self.max_length = max_length
         self.add_special_tokens = add_special_tokens
 
     def __call__(self, text: Text) -> BatchEncoding:
         return self.tokenizer(
             text.str, 
+            max_length=self.max_length,
             truncation=True, 
             add_special_tokens=self.add_special_tokens,
         )
@@ -109,17 +113,19 @@ class ProteinFeaturizer(Featurizer):
 
 class ProteinTransformersFeaturizer(ProteinFeaturizer):
     def __init__(self,
-        model_name_or_path: str,
+        tokenizer: PreTrainedTokenizer,
         max_length: int=1024,
         add_special_tokens: bool=True,
     ) -> None:
         super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, model_max_length=max_length, truncation=True)
+        self.tokenizer = tokenizer
+        self.max_length = max_length
         self.add_special_tokens = add_special_tokens
 
     def __call__(self, protein: Protein) -> Dict[str, Any]:
         return self.tokenizer(
             protein.sequence,
+            max_length=self.max_length,
             truncation=True,
             add_special_tokens=self.add_special_tokens,
         )
@@ -166,7 +172,7 @@ class EnsembleFeaturizer(Featurizer):
 
 if __name__ == "__main__":
     from transformers import DataCollatorWithPadding
-    featurizer = TextTransformersFeaturizer("./checkpoints/molt5/base")
+    featurizer = TextTransformersFeaturizer(T5Tokenizer.from_pretrained("./checkpoints/molt5/base"))
     a = featurizer(text=Text.from_str("Hello"))
     b = featurizer(text=Text.from_str("Hello World"))
     collator = DataCollatorWithPadding(featurizer.tokenizer, padding=True)

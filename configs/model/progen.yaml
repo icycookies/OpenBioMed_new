@@ -1,0 +1,14 @@
+model:
+  name: progen
+  model_name_or_path: ./checkpoints/progen2/base
+  max_length: 1024
+  half: True
+
+  generation:
+    num_beams: 1
+    do_sample: True
+    max_length: 1024
+    min_length: 1
+    repetition_penalty: 1.05
+    temperature: 0.8
+    top_p: 0.9

@@ -9,4 +9,5 @@ python open_biomed/scripts/train.py \
 --additional_config_file configs/model/$MODEL.yaml \
 --dataset_name $DATASET \
 --dataset_path ./datasets/$TASK/$DATASET \
---empty_folder 
+--empty_folder \
+--debug

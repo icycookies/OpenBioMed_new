@@ -18,12 +18,12 @@ class MolT5(TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMo
         self.tokenizer = T5Tokenizer.from_pretrained(model_cfg.hf_model_name_or_path)
         self.featurizers = {
             "molecule": MoleculeTransformersFeaturizer(
-                tokenizer=model_cfg.hf_model_name_or_path, 
+                tokenizer=self.tokenizer, 
                 max_length=model_cfg.smiles_max_length,
                 base='SMILES',
             ),
             "text": TextTransformersFeaturizer(
-                tokenizer=model_cfg.hf_model_name_or_path,
+                tokenizer=self.tokenizer,
                 max_length=model_cfg.text_max_length,
             )
         }

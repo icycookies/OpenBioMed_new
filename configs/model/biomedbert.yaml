@@ -1,0 +1,4 @@
+model:
+  name: pretrained_lm
+  model_name_or_path: ./checkpoints/biomedbert/base
+  max_length: 512

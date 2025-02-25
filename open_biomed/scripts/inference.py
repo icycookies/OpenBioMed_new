@@ -7,7 +7,7 @@ import argparse
 from open_biomed.core.pipeline import InferencePipeline
 from open_biomed.core.visualize import MoleculeVisualizer, ProteinVisualizer, ComplexVisualizer
 from open_biomed.data import Molecule, Text, Protein, Pocket
-from open_biomed.core.oss_warpper import oss_warpper
+# from open_biomed.core.oss_warpper import oss_warpper
 
 def test_text_based_molecule_editing():
     pipeline = InferencePipeline(
@@ -67,14 +67,33 @@ def test_structure_based_drug_design():
 def test_molecule_question_answering():
     pipeline = InferencePipeline(
         task="molecule_question_answering",
-        model="molt5",
-        model_ckpt="/AIRvePFS/dair/wenluo/projects/OpenBioMed_new/logs/molecule_question_answering/molt5-MolQA/train/checkpoints/last.ckpt",
+        model="biot5",
+        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/molecule_question_answering/biot5-MQA/train/checkpoints/last.ckpt",
         output_prompt="MQA: {output}",
         device="cuda:0"
     )
-    input_text="COC(=O)C1=C2Nc3ccccc3[C@@]23CC[NH+]2CC=C[C@@]([C@@H](C)O)(C1)[C@H]23, Please identify if this molecule has a role as a conjugate acid, and if so, what is its paired conjugate base?"
+    molecule = Molecule.from_smiles("C[C@@H]1CCCCO[C@@H](CN(C)C(=O)Cc2ccccc2)[C@@H](C)CN([C@@H](C)CO)C(=O)c2cc(NS(C)(=O)=O)ccc2O1")
+    question = Text.from_str("Could you provide the systematic name of this compound according to IUPAC nomenclature?")
     outputs = pipeline.run(
-        text=Text.from_str(input_text)
+        molecule=molecule,
+        text=question,
+    )
+    print(outputs)
+    return pipeline
+
+def test_protein_question_answering():
+    pipeline = InferencePipeline(
+        task="protein_question_answering",
+        model="biot5",
+        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/protein_question_answering/biot5-PQA/train/checkpoints/last.ckpt",
+        output_prompt="PQA: {output}",
+        device="cuda:0"
+    )
+    protein = Protein.from_fasta("MRVGVIRFPGSNCDRDVHHVLELAGAEPEYVWWNQRNLDHLDAVVIPGGFSYGDYLRAGAIAAITPVMDAVRELVREEKPVLGICNGAQILAEVGLVPGVFTVNEHPKFNCQWTELRVKTTRTPFTGLFKKDEVIRMPVAHAEGRYYHDNISEVWENDQVVLQFHGENPNGSLDGITGVCDESGLVCAVMPHPERASEEILGSVDGFKFFRGILKFRG")
+    question = Text.from_str("Inspect the protein sequence and offer a concise description of its properties.")
+    outputs = pipeline.run(
+        protein=protein,
+        text=question,
     )
     print(outputs)
     return pipeline
@@ -115,6 +134,23 @@ def test_mutation_engineering():
         prompt=prompt
     )
     print(outputs)
+
+def test_protein_generation():
+    from open_biomed.models.functional_model_registry import PROTEIN_DECODER_REGISTRY
+    from open_biomed.utils.config import Config
+    config = Config(config_file="./configs/model/progen.yaml").model
+    model = PROTEIN_DECODER_REGISTRY["progen"](config)
+    model = model.to("cuda:1")
+    print(model.generate_protein()[0])
+    """
+    protein = Protein.from_fasta('GFLPFRGADEGLAAREAATLAARGTAARAYREDSWAVPVPRGLLGDLTARVAALGAASPPPADPLAVTLDLHHVTAEVALTTVLDAATLVHGQTRVLSAEDAAEAATAAAAATEAYLERLQDFVLFMSASVRVWRRGNAAGATGPEWDQWYTVADRDALGSAPTHLAVLGRQADALCHFVLDRVAWGTCGTPLWSGDEDLGNVVATFAGYADRLATAPRDLIM')
+    protein = model.collator([model.featurizer(protein)])
+    protein = {
+        "input_ids": protein["input_ids"].to("cuda:1"),
+        "attention_mask": protein["attention_mask"].to("cuda:1"),
+    }
+    print(model.generate_loss(protein))
+    """
 
 def visualize_molecule():
     os.system("rm ./tmp/*.png")
@@ -162,8 +198,10 @@ INFERENCE_UNIT_TESTS = {
     "visualize_protein": visualize_protein,
     "visualize_complex": visualize_complex,
     "molecule_question_answering": test_molecule_question_answering,
+    "protein_question_answering": test_protein_question_answering,
     "mutation_explanation": test_mutation_explanation,
     "mutation_engineering": test_mutation_engineering,
+    "protein_generation": test_protein_generation,
 }
 
 if __name__ == "__main__":

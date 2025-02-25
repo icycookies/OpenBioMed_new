@@ -46,12 +46,19 @@ class MolInstructionsForProteinDesign(TextBasedProteinGenerationDataset):
                 continue
             self.texts.append(Text.from_str(sample["input"]))
             self.proteins.append(Protein.from_fasta(seq))
-            if sample["metadata"]["split"] == "train" and random.randint(1, 100) > 95:
-                self.split_indexes["valid"].append(cnt)
+            if sample["metadata"]["split"] == "train":
+                if self.cfg.debug:
+                    self.split_indexes["train"].append(cnt)
+                    if cnt >= 498:
+                        self.split_indexes["valid"].append(cnt)
+                elif random.randint(1, 100) > 95:
+                    self.split_indexes["valid"].append(cnt)
+                else:
+                    self.split_indexes["train"].append(cnt)
             else:
                 self.split_indexes[sample["metadata"]["split"]].append(cnt)
             cnt += 1
-            if cnt >= 50 and self.cfg.debug:
+            if cnt >= 500 and self.cfg.debug:
                 break
         # print(len(self.split_indexes["train"]), len(self.split_indexes["valid"]), len(self.split_indexes["test"]))
         super()._load_data()

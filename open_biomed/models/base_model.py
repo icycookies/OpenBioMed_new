@@ -24,6 +24,10 @@ class BaseModel(nn.Module):
         # Load model parameters from a saved checkpoint with OpenBioMed format
         # NOTE: This method should not be overrided. To load the checkpoint provided by other works, please use the from_pretrained method
         state_dict = torch.load(open(checkpoint_file, "rb"), map_location="cpu")
+        if "state_dict" in state_dict:
+            state_dict = state_dict["state_dict"]
+        if hasattr(self, "load_ckpt"):
+            self.load_ckpt(state_dict)
         self.load_state_dict(state_dict, strict=True)
 
     def configure_task(self, task: str) -> None:
