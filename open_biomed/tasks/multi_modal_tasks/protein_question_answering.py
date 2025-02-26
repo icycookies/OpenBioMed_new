@@ -19,6 +19,14 @@ class ProteinQA(BaseTask):
         super().__init__()
 
     @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Protein question answering.',
+            'Inputs: {"protein": a protein you are interested in. "text": a question about the protein.}',
+            "Outputs: An answer to the question."
+        ])
+
+    @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         return DefaultDataModule("protein_question_answering", dataset_cfg, featurizer, collator)
 

@@ -32,6 +32,10 @@ class BaseTask(ABC):
         super().__init__()
 
     @abstractstaticmethod
+    def print_usage():
+        raise NotImplementedError
+
+    @abstractstaticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         raise NotImplementedError
 

@@ -20,6 +20,14 @@ class MoleculeCaptioning(BaseTask):
         super().__init__()
 
     @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Molecule captioning.',
+            'Inputs: {"molecule": a small molecule you are interested in.}',
+            "Outputs: Detailed textual descriptions of the molecule."
+        ])
+
+    @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         return DefaultDataModule("molecule_captioning", dataset_cfg, featurizer, collator)
 

@@ -1,8 +1,11 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TextIO
 
 import numpy as np
+import random
 import torch
 from transformers import BatchEncoding, PreTrainedTokenizer
+
+from open_biomed.data import Molecule, Pocket, Protein, Text
 
 def sub_dict(in_dict: dict[str, Any], keys_to_include: List[str]) -> dict[str, Any]:
     # Get a sub-dictionary based on keys_to_include
@@ -55,3 +58,52 @@ def collate_objects_as_list(inputs: List[Dict[str, Any]]) -> Dict[str, Any]:
                 outputs[k] = []
             outputs[k].append(v)
     return outputs
+
+def wrap_and_select_outputs(outputs: Any, context: Optional[TextIO]=None) -> Dict[str, Any]:
+    if isinstance(outputs, tuple):
+        outputs = outputs[0]
+    if isinstance(outputs, list):
+        selected = random.randint(0, len(outputs) - 1)
+        if len(outputs) > 0 and context is not None:
+            context.write(f"Selected {selected}th output for downstream tools.\n")
+        outputs = outputs[selected]
+    if isinstance(outputs, tuple):
+        wrapped_all = {}
+        for out in outputs:
+            wrapped = wrap_and_select_outputs(out)
+            for key, value in wrapped.items():
+                wrapped_all[key] = value
+        return wrapped_all
+    elif isinstance(outputs, Molecule):
+        return {"molecule": outputs}
+    elif isinstance(outputs, Protein):
+        return {"protein": outputs}
+    elif isinstance(outputs, Pocket):
+        return {"pocket": outputs}
+    elif isinstance(outputs, Text):
+        return {"text": outputs}
+    else:
+        return {"output": outputs}
+
+def create_tool_input(data_type: str, value: str) -> Any:
+    if data_type == "molecule":
+        if value.endswith(".sdf"):
+            return Molecule.from_sdf_file(value)
+        elif value.endswith(".pkl"):
+            return Molecule.from_binary_file(value)
+        else:
+            return Molecule.form_smiles(value)
+    elif data_type == "protein":
+        if value.endswith(".pdb"):
+            return Protein.from_pdb_file(value)
+        if value.endswith(".pkl"):
+            return Protein.from_binary_file(value)
+        else:
+            return Protein.from_fasta(value)
+    elif data_type == "pocket":
+        return Pocket.from_binary_file(value)
+    elif data_type == "text":
+        return Text.from_str(value)
+    else:
+        return value
+    

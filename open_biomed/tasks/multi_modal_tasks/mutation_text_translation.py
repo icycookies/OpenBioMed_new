@@ -13,6 +13,14 @@ from open_biomed.utils.featurizer import Featurizer
 class MutationExplanation(BaseTask):
     def __init__(self) -> None:
         super().__init__()
+    
+    @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Mutation explanation.',
+            'Inputs: {"protein": a protein (the amino acid sequence is required). "mutation": a string that describes a single-point substitution mutation. (e.g. A51F indicates that the 51st amino acid changes from A to F)}',
+            "Outputs: Textual descriptions of how this mutation affects protein function and further biological significance."
+        ])
 
     @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
@@ -57,6 +65,14 @@ class MutationExplanationEvaluationCallback(TextOverlapEvalCallback):
 class MutationEngineering(BaseTask):
     def __init__(self) -> None:
         super().__init__()
+
+    @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Mutation engineering.',
+            'Inputs: {"protein": a protein (the amino acid sequence is required). "prompt": A textual prompt indicating the desired property of the mutant.}',
+            "Outputs: A string that describes a single-point substitution mutation. (e.g. A51F indicates that the 51st amino acid changes from A to F)."
+        ])
 
     @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:

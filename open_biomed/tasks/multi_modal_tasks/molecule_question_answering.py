@@ -18,6 +18,14 @@ class MoleculeQA(BaseTask):
         super().__init__()
 
     @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Molecule question answering.',
+            'Inputs: {"molecule": a small molecule you are interested in. "text": a question about the molecule.}',
+            "Outputs: An answer to the question."
+        ])
+
+    @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         return DefaultDataModule("molecule_question_answering", dataset_cfg, featurizer, collator)
 

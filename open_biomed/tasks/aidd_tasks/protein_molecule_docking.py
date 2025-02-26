@@ -45,6 +45,14 @@ class VinaDockTask():
     def __init__(self, mode: str="dock") -> None:
         self.mode = mode
 
+    @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Ligand-receptor docking.',
+            'Inputs: {"molecule": the ligand, "protein": the receptor}',
+            "Outputs: A float number indicating the AutoDockVina score of the binding."
+        ])
+
     def run(self, molecule: Molecule, protein: Protein) -> float:
         sdf_file = molecule.save_sdf()
         pdb_file = protein.save_pdb()

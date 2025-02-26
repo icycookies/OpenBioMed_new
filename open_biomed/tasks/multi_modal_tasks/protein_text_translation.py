@@ -21,6 +21,14 @@ class TextBasedProteinGeneration(BaseTask):
         super().__init__()
 
     @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Text-based protein generation.',
+            'Inputs: {"text": Textual instructions descrbing the desired properties of the designed protein.}',
+            "Outputs: A protein sequence or structure."
+        ])
+
+    @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         return DefaultDataModule("text_based_protein_generation", dataset_cfg, featurizer, collator)
 

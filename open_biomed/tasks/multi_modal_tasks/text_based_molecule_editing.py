@@ -19,6 +19,14 @@ class TextMoleculeEditing(BaseTask):
         super().__init__()
 
     @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Text-based molecule editing.',
+            'Inputs: {"molecule": a small molecule, "text": the desired property of the updated molecule}',
+            "Outputs: A new molecule that is structurally similar to the original molecule but exhibit improved property described in text."
+        ])
+
+    @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         return DefaultDataModule("text_based_molecule_editing", dataset_cfg, featurizer, collator)
 

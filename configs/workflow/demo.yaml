@@ -1,0 +1,10 @@
+tools:
+  - name: molecule_name_request
+    inputs:
+      accession: dimethoxy-sulfanylidene-(3,5,6-trichloropyridin-2-yl)oxy-lambda5-phosphane
+  - name: molecule_question_answering
+    inputs:
+      text: How can we group this molecule according to its molecular structure and functional groups?
+edges:
+  - start: 0
+    end: 1

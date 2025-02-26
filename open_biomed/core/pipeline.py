@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Optional, Union
 from typing_extensions import Any
 
 import argparse
@@ -14,12 +14,12 @@ import pytz
 import torch
 from tqdm import tqdm
 
+from open_biomed.core.tool import Tool
 from open_biomed.data import Molecule, Protein, Pocket
 from open_biomed.tasks import TASK_REGISTRY
 from open_biomed.utils.callbacks import RecoverCallback, GradientClip
 from open_biomed.utils.config import Config, Struct, merge_config
 from open_biomed.utils.distributed import setup_outputs_for_distributed
-from open_biomed.utils.misc import sub_batch_by_interval
 
 logging_level = {
     "info": logging.INFO,
@@ -228,14 +228,14 @@ class TrainValPipeline(Pipeline):
         else:
             self.trainer.test(self.model, dataloaders=self.datamodule.test_dataloader(), ckpt_path=self.cfg.evaluation.ckpt_path)
 
-class InferencePipeline(Pipeline):
+class InferencePipeline(Pipeline, Tool):
     def __init__(self, 
         task: str="",
         model: str="",
         model_ckpt: str="",
         logging_level: str="info",
         device: str="cpu",
-        output_prompt: str="",
+        output_prompt: Optional[str]=None,
         retry_limit: int=10,
     ) -> None:
         super().__init__()
@@ -280,6 +280,9 @@ class InferencePipeline(Pipeline):
             self.model.load_state_dict(state_dict, strict=False)
         self.model.model.eval()
         self.model.to(self.cfg.device)
+
+    def print_usage(self):
+        return self.task.print_usage()
 
     def run(self, batch_size: Union[int, str]="max", *args, **kwargs) -> Any:
         logging.debug(f"Input: {kwargs}")
@@ -343,12 +346,14 @@ class InferencePipeline(Pipeline):
             if isinstance(output, Molecule):
                 file = f"./tmp/mol_{timestamp}_{i}.pkl"
                 output.save_binary(file)
-            if isinstance(output, Protein):
+            elif isinstance(output, Protein):
                 file = f"./tmp/mol_{timestamp}_{i}.pkl"
                 output.save_binary(file)
-            if isinstance(output, Pocket):
+            elif isinstance(output, Pocket):
                 file = f"./tmp/pocket_{timestamp}_{i}.pkl"
                 output.save_binary(file)
+            else:
+                file = str(output)
             files.append(file)
         if self.output_prompt:
             return [self.output_prompt.format(output=output, **kwargs) for output in outputs], files

@@ -19,6 +19,14 @@ class TextGuidedMoleculeGeneration(BaseTask):
         super().__init__()
 
     @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Text-based molecule generation.',
+            'Inputs: {"text": textual descriptions of the desired molecule.}',
+            "Outputs: A new molecule that best fits the textual instruction."
+        ])
+
+    @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         return DefaultDataModule("text_guided_molecule_generation", dataset_cfg, featurizer, collator)
 

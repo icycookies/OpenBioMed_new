@@ -17,7 +17,6 @@ def test_text_based_molecule_editing():
         task="text_based_molecule_editing",
         model="molt5",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/text_based_molecule_editing/molt5-fs_mol_edit/train/checkpoints/last.ckpt",
-        output_prompt="Edited molecule: {output}",
         device="cuda:0"
     )
     input_smiles = "Nc1[nH]c(C(=O)c2ccccc2)c(-c2ccccn2)c1C(=O)c1c[nH]c2ccc(Br)cc12"
@@ -36,11 +35,10 @@ def test_pocket_molecule_docking():
         task="pocket_molecule_docking",
         model="pharmolix_fm",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/pharmolix_fm.ckpt",
-        output_prompt="Designed molecule: {output}",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("tmp/test/tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("tmp/test/tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         molecule=ligand,
@@ -49,25 +47,26 @@ def test_pocket_molecule_docking():
     print(outputs)
 
 def test_structure_based_drug_design():
-    os.system("rm ./tmp/*.pkl")
     pipeline = InferencePipeline(
         task="structure_based_drug_design",
         model="pharmolix_fm",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/pharmolix_fm.ckpt",
-        output_prompt="Designed molecule: {output}",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         pocket=pocket
     )
     print(outputs)
-    predicted_molecule = Molecule.from_binary_file(outputs[1][0])
-    vina = VinaDockTask(mode="dock")
-    print(vina.run(ligand, protein)[0])
-    print(vina.run(predicted_molecule, protein)[0])
+    try:
+        predicted_molecule = Molecule.from_binary_file(outputs[1][0])
+        vina = VinaDockTask(mode="dock")
+        print(vina.run(ligand, protein)[0])
+        print(vina.run(predicted_molecule, protein)[0])
+    except:
+        print("AutoDockVina not supported.")
     return pipeline
 
 
@@ -76,7 +75,6 @@ def test_molecule_question_answering():
         task="molecule_question_answering",
         model="biot5",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/molecule_question_answering/biot5-MQA/train/checkpoints/last.ckpt",
-        output_prompt="MQA: {output}",
         device="cuda:0"
     )
     molecule = Molecule.from_smiles("C[C@@H]1CCCCO[C@@H](CN(C)C(=O)Cc2ccccc2)[C@@H](C)CN([C@@H](C)CO)C(=O)c2cc(NS(C)(=O)=O)ccc2O1")
@@ -93,7 +91,6 @@ def test_protein_question_answering():
         task="protein_question_answering",
         model="biot5",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/protein_question_answering/biot5-PQA/train/checkpoints/last.ckpt",
-        output_prompt="PQA: {output}",
         device="cuda:0"
     )
     protein = Protein.from_fasta("MRVGVIRFPGSNCDRDVHHVLELAGAEPEYVWWNQRNLDHLDAVVIPGGFSYGDYLRAGAIAAITPVMDAVRELVREEKPVLGICNGAQILAEVGLVPGVFTVNEHPKFNCQWTELRVKTTRTPFTGLFKKDEVIRMPVAHAEGRYYHDNISEVWENDQVVLQFHGENPNGSLDGITGVCDESGLVCAVMPHPERASEEILGSVDGFKFFRGILKFRG")
@@ -110,7 +107,6 @@ def test_mutation_explanation():
         task="mutation_explanation",
         model="mutaplm",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/mutaplm.pth",
-        output_prompt="Mutation effect: {output}",
         device="cuda:0"
     )
     # protein = Protein.from_fasta("MQPWHGKAMQRASEAGATAPKASARNARGAPMDPTESPAAPEAALPKAGKFGPARKSGSRQKKSAPDTQERPPVRATGARAKKAPQRAQDTQPSDATSAPGAEGLEPPAAREPALSRAGSCRQRGARCSTKPRPPPGPWDVPSPGLPVSAPILVRRDAAPGASKLRAVLEKLKLSRDDISTAAGMVKGVVDHLLLRLKCDSAFRGVGLLNTGSYYEHVKISAPNEFDVMFKLEVPRIQLEEYSNTRAYYFVKFKRNPKENPLSQFLEGEILSASKMLSKFRKIIKEEINDIKDTDVIMKRKRGGSPAVTLLISEKISVDITLALESKSSWPASTQEGLRIQNWLSAKVRKQLRLKPFYLVPKHAKEGNGFQEETWRLSFSHIEKEILNNHGKSKTCCENKEEKCCRKDCLKLMKYLLEQLKERFKDKKHLDKFSSYHVKTAFFHVCTQNPQDSQWDRKDLGLCFDNCVTYFLQCLRTEKLENYFIPEFNLFSSNLIDKRSKEFLTKQIEYERNNEFPVFDEF")
@@ -131,7 +127,6 @@ def test_mutation_engineering():
         task="mutation_engineering",
         model="mutaplm",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/mutaplm.pth",
-        output_prompt="Designed mutation: {output}",
         device="cuda:1"
     )
     protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
@@ -161,7 +156,7 @@ def visualize_molecule():
     #os.system("rm ./tmp/*.png")
     #os.system("rm ./tmp/*.gif")
     pipeline = MoleculeVisualizer()
-    ligand = Molecule.from_binary_file("tmp/test/tmp/pubchem_240.pkl")
+    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/pubchem_240.pkl")
     outputs = pipeline.run(
         ligand, config="ball_and_stick", rotate=False
     )
@@ -171,8 +166,8 @@ def visualize_molecule():
     return pipeline
 
 def visualize_protein():
-    os.system("rm ./tmp/*.png")
-    os.system("rm ./tmp/*.gif")
+    #os.system("rm ./tmp/*.png")
+    #os.system("rm ./tmp/*.gif")
     pipeline = ProteinVisualizer()
     protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
     outputs = pipeline.run(protein=protein, config="cartoon", rotate=False)
@@ -183,8 +178,8 @@ def visualize_complex():
     #os.system("rm ./tmp/*.png")
     #os.system("rm ./tmp/*.gif")
     pipeline = ComplexVisualizer()
-    ligand = Molecule.from_binary_file("tmp/test/tmp/pubchem_240.pkl")
-    protein = Protein.from_pdb_file("tmp/test/tmp/pdb_6LVN.pdb")
+    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/pubchem_240.pkl")
+    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/pdb_6LVN.pdb")
     try:
         outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
         oss_file_path = oss_warpper.generate_file_name(outputs)
@@ -196,7 +191,7 @@ def visualize_complex():
     return pipeline
 
 
-
+# TODO: support other datasets
 def test_molecule_property_prediction():
     pipeline = InferencePipeline(
         task="molecule_property_prediction",

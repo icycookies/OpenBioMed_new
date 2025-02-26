@@ -12,6 +12,14 @@ class StructureBasedDrugDesign(BaseTask):
         super().__init__()
 
     @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Structure-based drug design.',
+            'Inputs: {"pocket": a protein pocket}',
+            "Outputs: A small molecule that is likely to bind with the pocket."
+        ])
+
+    @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
         return DefaultDataModule("structure_based_drug_design", dataset_cfg, featurizer, collator)
 
