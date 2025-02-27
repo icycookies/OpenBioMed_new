@@ -8,15 +8,22 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from open_biomed.data import Molecule, Protein, Pocket
+from open_biomed.core.tool import Tool
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class Protein_Binding_Site_Prediction():
-    def __init__(self, output_path: str = "./temp/p2pocket") -> None:
+class Protein_Binding_Site_Prediction(Tool):
+    def __init__(self, output_path: str = "./tmp/p2pocket") -> None:
         self.output_path = output_path
     
+    def print_usage(self) -> str:
+        return "\n".join([
+            'Protein Binding Site Prediction',
+            'Inputs: PDB file of the protein, or protein sequence (future support)',
+            'Outputs: Multiple predicted binding sites'
+        ])
 
     def run(self, pdb_file: str, threads: int=8) -> Pocket:
         
@@ -59,15 +66,21 @@ class Protein_Binding_Site_Prediction():
 
             
             protein = Protein.from_pdb_file(pdb_file)
+            random.shuffle(pocket_residues)
 
-            pocket_residue = random.choice(pocket_residues)
-            
-            pocket = Pocket.from_protein_subseq(protein, pocket_residue)
-
-            return pocket
+            pockets, pocket_paths = [], []
+            for pocket_residue in pocket_residues:
+                try:
+                    pocket = Pocket.from_protein_subseq(protein, pocket_residue)
+                    pocket_path = pocket.save_binary()
+                    pockets.append(pocket)
+                    pocket_paths.append(pocket_path)
+                except Exception as e:
+                    logging.error(f"An error occurred: {str(e)}")
+            return pockets, pocket_paths
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
-            return None
+            return [], []
 
 
 

@@ -76,7 +76,7 @@ class VinaDockTask():
             
             prot_pqr = pdb_file.replace(".pdb", ".pqr")
             if not os.path.exists(prot_pqr):
-                subprocess.Popen(['pdb2pqr30','--ff=AMBER', pdb_file, prot_pqr],
+                subprocess.Popen(['/AIRvePFS/dair/conda_envs/biomed/bin/pdb2pqr30','--ff=AMBER', pdb_file, prot_pqr],
                             stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL).communicate()
             prot_pdbqt = pdb_file.replace(".pdb", ".pdbqt")
             if not os.path.exists(prot_pdbqt):

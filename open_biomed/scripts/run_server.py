@@ -18,7 +18,7 @@ app = FastAPI()
 class TaskRequest(BaseModel):
     task: str
     model: str
-    molecule: Optional[str] = None  # 使用 Optional[str]
+    molecule: Optional[str] = None
     protein: Optional[str] = None
     pocket: Optional[str] = None
     text: Optional[str] = None
@@ -26,7 +26,7 @@ class TaskRequest(BaseModel):
     query: Optional[str] = None
 
 class SearchRequest(BaseModel):
-    database: str
+    task: str
     query: str
 
 molecule_property_prediction_prompt = {
@@ -64,7 +64,7 @@ molecule_property_prediction_prompt = {
            "A positive result suggests the compound is likely to be active against the target, while a negative result implies lower activity."
 }
 
-# 定义一个类，通过字符串判断文件后缀来选择不同的数据读取方式
+
 class IO_Reader:
     def __init__(self):
         pass
@@ -91,10 +91,6 @@ class IO_Reader:
         return Text.from_str(string)
 
 
-# Create a dictionary to store the pipeline instance
-
-
-
 
 @app.post("/run_pipeline/")
 async def run_pipeline(request: TaskRequest):
@@ -115,36 +111,49 @@ async def run_pipeline(request: TaskRequest):
             outputs = pipeline.run(
                 molecule=molecule,
                 text=text)
-            print(outputs)
-            smiles = outputs[0][0].split(pipeline.output_prompt.split("{output}")[0])[1]
+            smiles = outputs[0][0].smiles
             path = outputs[1][0]
             output = {"task": task_name, "model": model, "molecule": path, "molecule_preview": smiles}
         elif task_name == "structure_based_drug_design":
             pipeline = TOOLS["structure_based_drug_design"]
-            required_inputs = ["protein", "molecule"]
+            required_inputs = ["pocket"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
                     status_code=400, detail="protein and molecule are required for structure_based_drug_design task")
-            protein = IO_Reader.get_protein(request["protein"])
-            ligand = IO_Reader.get_molecule(request["molecule"])
-            pocket = Pocket.from_protein_ref_ligand(protein, ligand)
+            pocket = Pocket.from_binary_file(request["pocket"])
             outputs = pipeline.run(
                 pocket=pocket
             )
-            smiles = outputs[0][0].split(pipeline.output_prompt.split("{output}")[0])[1]
+            smiles = outputs[0][0].smiles
             path = outputs[1][0]
             output =  {"task": task_name, "model": model, "molecule": path, "molecule_preview": smiles}
         elif task_name == "molecule_question_answering":
             pipeline = TOOLS["molecule_question_answering"]
-            required_inputs = ["text"]
+            required_inputs = ["text", "molecule"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
-                    status_code=400, detail="text is required for molecule_question_answering task")
+                    status_code=400, detail="text and molcule are required for molecule_question_answering task")
             text = IO_Reader.get_text(request["text"])
+            molecule = IO_Reader.get_molecule(request["molecule"])
             outputs = pipeline.run(
+                molecule=molecule,
                 text=text
             )
-            text = outputs[0][0].split(pipeline.output_prompt.split("{output}")[0])[1]
+            text = outputs[0][0].str
+            output =  {"task": task_name, "model": model, "text": text}
+        elif task_name == "protein_question_answering":
+            pipeline = TOOLS["protein_question_answering"]
+            required_inputs = ["text", "protein"]
+            if not all(key in request for key in required_inputs):
+                raise HTTPException(
+                    status_code=400, detail="text and protein are required for protein_question_answering task")
+            text = IO_Reader.get_text(request["text"])
+            protein = IO_Reader.get_protein(request["protein"])
+            outputs = pipeline.run(
+                protein=protein,
+                text=text
+            )
+            text = outputs[0][0].str
             output =  {"task": task_name, "model": model, "text": text}
         elif task_name == "visualize_molecule":
             pipeline = TOOLS["visualize_molecule"]
@@ -182,17 +191,26 @@ async def run_pipeline(request: TaskRequest):
                 #dataset=dataset
             )
             output = outputs[0][0].cpu()
-            # 应用softmax函数
+            # softmax
             output = F.softmax(output, dim=0).tolist()
             #output = [round(x, 4) for x in output]
             output = {"task": task_name, "model": model, "score": str(output[0])}
-
             #output = {"score": format(float(outputs[0][0]), ".4f")}
-
-
+        elif task_name == "protein_binding_site_prediction":
+            pipeline = TOOLS["protein_binding_site_prediction"]
+            required_inputs = ["protein"]
+            if not all(key in request for key in required_inputs):
+                raise HTTPException(
+                    status_code=400, detail="protein are required for protein_binding_site_prediction task")
+            #protein = IO_Reader.get_protein(request["protein"])
+            pdb_file = request["protein"]
+            outputs = pipeline.run(
+                pdb_file=pdb_file
+            )
+            output = outputs[1][0]
+            output = {"task": task_name, "model": model, "pocket": output}
         else:
             raise HTTPException(status_code=400, detail="Invalid task_name")
-    
         return output
     except Exception as e:
         print(e)
@@ -202,26 +220,28 @@ async def run_pipeline(request: TaskRequest):
 @app.post("/web_search/")
 async def web_search(request: SearchRequest):
     request = request.model_dump()
-    database = request["database"].lower()
+    task = request["task"].lower()
     # Call the corresponding function based on the task name and get the pipeline instance
     try:
-        if database == "pubchem":
-            requester = TOOLS["pubchemrequest"]
+        if task == "molecule_name_request":
+            requester = TOOLS["molecule_name_request"]
             required_inputs = ["query"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
                     status_code=400, detail="query are required for pubchemrequest task")
             outputs = await requester.run(request["query"])
-            smiles = Molecule.from_binary_file(outputs).smiles
-            return {"database": database, "molecule": outputs, "molecule_preview": smiles}
-        if database == "web":
-            requester = TOOLS["websearchrequest"]
+            smiles = outputs[0][0].smiles
+            output = outputs[1][0]
+            return {"task": task, "molecule": output, "molecule_preview": smiles}
+        if task == "web_search":
+            requester = TOOLS["web_search"]
             required_inputs = ["query"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
                     status_code=400, detail="query are required for websearch task")
             outputs = requester.run(request["query"])
-            return {"database": database, "text": outputs}
+            outputs = outputs[0][0]
+            return {"task": task, "text": outputs}
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))

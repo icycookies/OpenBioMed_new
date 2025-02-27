@@ -30,10 +30,11 @@ POCKET_CONFIG = {
 }
 
 class Pocket:
-    def __init__(self) -> None:
+    def __init__(self, name: Optional[str] = None) -> None:
         self.atoms = None
         self.conformer = None
         self.orig_indices = None         # Which part of the protein it belongs to
+        self.name = name
 
     @classmethod
     def from_protein_subregion(cls, protein: Protein, center: List[float], radius: float=10.0) -> Self:

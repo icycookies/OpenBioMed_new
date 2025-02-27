@@ -243,7 +243,7 @@ class WebSearchRequester(Tool):
         #result = {"query": [query] + question['query_list'],
         #          "result": res.json()["data"]}
         #result = {"result": [i["text"] for i in res.json()["data"]]}
-        result = "/n/n/n".join([i["text"] for i in res.json()["data"]])
+        result = "\n\n\n".join([i["text"] for i in res.json()["data"]])
         return [result], [result]
 
 
