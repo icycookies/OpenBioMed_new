@@ -17,7 +17,7 @@ class LazyDictForTool(dict):
         elif key == "protein_question_answering":
             self[key] = test_protein_question_answering()
         elif key == "protein_binding_site_prediction":
-            self[key] = Protein_Binding_Site_Prediction()
+            self[key] = ProteinBindingSitePrediction()
         elif key == "visualize_molecule":
             self[key] = MoleculeVisualizer()
         elif key == "visualize_protein":

@@ -14,7 +14,7 @@ from open_biomed.core.tool import Tool
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class Protein_Binding_Site_Prediction(Tool):
+class ProteinBindingSitePrediction(Tool):
     def __init__(self, output_path: str = "./tmp/p2pocket") -> None:
         self.output_path = output_path
     
