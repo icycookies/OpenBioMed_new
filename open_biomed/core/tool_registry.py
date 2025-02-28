@@ -2,6 +2,7 @@ from open_biomed.core.web_request import *
 from open_biomed.core.visualize import *
 from open_biomed.scripts.inference import *
 from open_biomed.core.third_party_server import *
+from open_biomed.core.llm_request import KeyInfoExtractor
 
 # TODO: Add pocket prediction as a tool
 class LazyDictForTool(dict):
@@ -44,6 +45,8 @@ class LazyDictForTool(dict):
             self[key] = PDBRequester()
         elif key == "web_search":
             self[key] = WebSearchRequester()
+        elif key == "key_info_extract":
+            self[key] = KeyInfoExtractor()
         else:
             raise NotImplementedError(f"{key} is currently not supported!")
         return self[key]
