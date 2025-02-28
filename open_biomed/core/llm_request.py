@@ -176,6 +176,13 @@ class LLM_API(LLM):
             "reasoning": resp_thinking
         }
 
+class LLMExtractor(LLM_API):
+    def __init__(self, api_infos: dict, temperature: float = 0.0):
+        super(LLMExtractor, self).__init__(api_infos=api_infos, temperature=temperature)
+
+    def _update_query(self, query: str, context: ContextDict = {"ref_text": "", "others": dict()}):
+        query = f"Here are some references, complete the task based on them\n---\n{context['ref_text']}\n---\nTask: {context['others']['task_desp']}"
+        return query
 
 class LLMReportGenerator(LLM_API):
     def __init__(self, api_infos: dict, temperature: float = 0.0):
@@ -185,6 +192,63 @@ class LLMReportGenerator(LLM_API):
         query = f"Here are some references, complete the task based on them\n---\n{context['ref_text']}\n---\n" + \
             f"Task: Generate a scientific report for biomedical expert according to the references. The report name is '{context['others']['title']}'. The report should be detailed and follows the following structure:\n---\n{context['others']['structure']}"
         return query
+
+class KeyInfoExtractor(Tool):
+
+    def __init__(self, api_infos: dict=API_INFOS) -> None:
+        from open_biomed.core.web_request import WebSearchRequester
+        self.agent_search = WebSearchRequester()
+        self.agent_extractor = LLMExtractor(api_infos=api_infos, temperature=0.0)
+        self.task_prompts = {
+            "sbdd": {
+                "search": "{}",
+                "extract": "Extract all the mentioned molecule names (or PubChem IDs), protein names (or target names), and optimization intentions. Your output should be in the following format: {'molecules': [''], 'proteins': [''], 'intentions': ['']}.",
+            },
+            "default": {
+                "search": "{}疾病的已有药物",
+                "extract": "Extract all the mentioned drugs' molecule (name, SMILES, or PubChem IDs). Your output should be in the following format: {'drugs': ['']}."
+            }
+        }
+
+    def print_usage(self) -> str:
+        return "\n".join([
+            'Search relevent information of the query and extract key values from that for workflow.',
+            'Inputs: {"query": query to be searched}',
+            'Outputs: A dict of list. Each list contains the extracted values.'
+        ])
+    
+    def run(self, query: str, task: str="default") -> Tuple[list[str], str]:
+        
+        try:
+            task_desp = self.task_prompts[task]["extract"]
+        except:
+            raise ValueError(f"{task} is currently not supported!")
+        
+        logging.info("[Retrival] Start")
+
+        retrivals = self.agent_search.run(query=self.task_prompts[task]["search"].format(query))[0][0]
+
+        logging.info("[Retrival] Done")
+
+        context = {
+            "ref_text": retrivals,
+            "others": {
+                "task_desp": task_desp
+            }
+        }
+
+        question = ""
+
+        resp = self.agent_extractor.generate(query=question, context=context, is_debug=True)
+
+        try:
+            result = eval(resp['final_resp'])
+        except:
+            result = ['ibuprofen']
+        
+        reasoning = resp['reasoning']
+
+        return result, reasoning
 
 class ReportGeneratorSBDD(Tool):
     def __init__(self, api_infos: dict=API_INFOS) -> None:
