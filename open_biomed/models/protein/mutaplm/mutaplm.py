@@ -32,9 +32,9 @@ class MutaPLMExplanationFeaturizer(Featurizer):
         self.max_length_label = max_length_label
         self.stage2_prompt = stage2_prompt
 
-    def __call__(self, wild_type: Protein, mutation: str, label: Optional[Text]=None, function: Optional[Text]=None) -> Dict[str, Any]:
+    def __call__(self, protein: Protein, mutation: str, label: Optional[Text]=None, function: Optional[Text]=None) -> Dict[str, Any]:
         pos = int(mutation[1:-1])
-        wild_type = wild_type.sequence
+        wild_type = protein.sequence
         mutant = wild_type[:pos - 1] + mutation[-1] + wild_type[pos:]
         featurized = {}
         featurized["wild_type"] = self.protein_tokenizer(
@@ -90,16 +90,16 @@ class MutaPLMEngineeringFeaturizer(Featurizer):
         self.max_length_protein = max_length_protein
         self.max_length_prompt = max_length_prompt
 
-    def __call__(self, wild_type: Protein, prompt: Text, label: Optional[str]=None, function: Optional[Text]=None) -> Dict[str, Any]:
+    def __call__(self, protein: Protein, text: Text, label: Optional[str]=None, function: Optional[Text]=None) -> Dict[str, Any]:
         featurized = {}
         featurized["wild_type"] = self.protein_tokenizer(
-            wild_type.sequence,
+            protein.sequence,
             max_length=self.max_length_protein,
             truncation=True,
             add_special_tokens=True,
         )
         featurized["prompt"] = self.text_tokenizer(
-            prompt.str,
+            text.str,
             max_length=self.max_length_prompt,
             truncation=True,
             add_special_tokens=False,

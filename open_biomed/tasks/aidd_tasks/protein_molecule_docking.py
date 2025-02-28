@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import List, Optional, Union
 
 import contextlib
 import numpy as np
 import os
 import pytorch_lightning as pl
 
+from open_biomed.core.tool import Tool
 from open_biomed.data import Molecule, Protein
 from open_biomed.tasks.base_task import BaseTask, DefaultDataModule, DefaultModelWrapper
 from open_biomed.utils.collator import Collator
@@ -14,6 +15,14 @@ from open_biomed.utils.featurizer import Featurizer
 class PocketMoleculeDocking(BaseTask):
     def __init__(self) -> None:
         super().__init__()
+
+    @staticmethod
+    def print_usage() -> str:
+        return "\n".join([
+            'Ligand-pocket docking.',
+            'Inputs: {"molecule": the ligand, "pocket": the pocket}',
+            "Outputs: A new molecule with 3D coordinates indicating the binding pose."
+        ])
 
     @staticmethod
     def get_datamodule(dataset_cfg: Config, featurizer: Featurizer, collator: Collator) -> pl.LightningDataModule:
@@ -41,19 +50,18 @@ class DockingEvaluationCallback(pl.Callback):
 
     # TODO: implement RMSD evaluation
 
-class VinaDockTask():
+class VinaDockTask(Tool):
     def __init__(self, mode: str="dock") -> None:
         self.mode = mode
 
-    @staticmethod
-    def print_usage() -> str:
+    def print_usage(self) -> str:
         return "\n".join([
             'Ligand-receptor docking.',
             'Inputs: {"molecule": the ligand, "protein": the receptor}',
             "Outputs: A float number indicating the AutoDockVina score of the binding."
         ])
 
-    def run(self, molecule: Molecule, protein: Protein) -> float:
+    def run(self, molecule: Molecule, protein: Protein) -> Union[List[float], List[str]]:
         sdf_file = molecule.save_sdf()
         pdb_file = protein.save_pdb()
         pos = np.array(molecule.conformer)
@@ -96,7 +104,7 @@ class VinaDockTask():
             elif self.mode == 'dock':
                 v.dock(exhaustiveness=8, n_poses=1)
                 score = v.energies(n_poses=1)[0][0]
-                pose_file = None
-            return score, pose_file
+                pose_file = "None"
+            return [score], [pose_file]
         except:
             raise ImportError()

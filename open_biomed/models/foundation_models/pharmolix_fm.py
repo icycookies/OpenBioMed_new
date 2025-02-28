@@ -38,6 +38,7 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
         self.num_edge_types = num_edge_types
 
     def __call__(self, molecule: Molecule) -> Dict[str, Any]:
+        molecule._add_rdmol()
         rdmol = molecule.rdmol
         node_type_list = []
         for atom in rdmol.GetAtoms():
@@ -45,7 +46,10 @@ class PharmolixFMMoleculeFeaturizer(MoleculeFeaturizer):
         node_type = F.one_hot(torch.LongTensor(node_type_list), num_classes=self.num_node_types).float()
         num_nodes = node_type.shape[0]
 
-        pos = torch.tensor(molecule.conformer).float()
+        if molecule.conformer is not None:
+            pos = torch.tensor(molecule.conformer).float()
+        else:
+            pos = torch.zeros(num_nodes, 3)
         # Move to center
         pos -= pos.mean(0)
         pos /= self.pos_norm

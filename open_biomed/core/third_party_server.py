@@ -1,3 +1,5 @@
+from typing import Tuple, List
+
 import os
 import subprocess
 import glob
@@ -25,8 +27,8 @@ class Protein_Binding_Site_Prediction(Tool):
             'Outputs: Multiple predicted binding sites'
         ])
 
-    def run(self, pdb_file: str, threads: int=8) -> Pocket:
-        
+    def run(self, protein: Protein, threads: int=8) -> Tuple[List[Pocket], List[str]]:
+        pdb_file = protein.save_pdb()
 
         pdb_filename = os.path.basename(pdb_file)
         pdb_name = os.path.splitext(pdb_filename)[0]

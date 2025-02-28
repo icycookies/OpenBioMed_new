@@ -79,7 +79,7 @@ class PubChemRequester(DBRequester):
 
 class PubChemStructureRequester(Requester):
     def __init__(self, 
-        threshold: float=0.95,
+        threshold: float=0.9,
         max_records: int=10,
         timeout: int=30
     ) -> None:
@@ -105,6 +105,9 @@ class PubChemStructureRequester(Requester):
                         content = await response.read()
                         content = json.loads(content.decode("utf-8"))
                         logging.info("Downloaded results successfully")
+                    elif response.status == 404:
+                        logging.info("No similar structures found!")
+                        return [molecule], [molecule.save_binary()]
                     else:
                         logging.warning(f"HTTP request failed, status {response.status}")
                         raise Exception()
@@ -114,7 +117,7 @@ class PubChemStructureRequester(Requester):
             raise e
         all_mols, all_files = [], []
         for cid in content['IdentifierList']['CID']:
-            mol, mol_file = await self.molecule_requester(cid)
+            mol, mol_file = await self.molecule_requester.run(cid)
             all_mols.extend(mol)
             all_files.extend(mol_file)
         return all_mols, all_files
@@ -165,7 +168,7 @@ class PDBRequester(DBRequester):
         database = "AlphaFoldDB" if "alphafold" in self.db_url else "PDB"
         return "\n".join([
             'PDB structure query.',
-            'Inputs: \{"accession": a ' + database + ' ID \}',
+            'Inputs: {"accession": a ' + database + ' ID}',
             "Outputs: A protein from the database."
         ])
 
@@ -465,4 +468,4 @@ if __name__ == "__main__":
     """
 
     requester = PubChemStructureRequester()
-    asyncio.run(requester.run(Molecule.from_smiles("COP(=S)(OC)OC1=NC(=C(C=C1Cl)Cl)Cl")))
+    asyncio.run(requester.run(Molecule.from_smiles("C=C(O)C1CC(C)C23CC4OC(C)COC4C(C)C4CC(O2)C(O)C4C32CC12")))

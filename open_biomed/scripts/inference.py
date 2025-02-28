@@ -5,8 +5,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import argparse
 
 from open_biomed.core.pipeline import InferencePipeline
-from open_biomed.core.oss_warpper import oss_warpper
-from open_biomed.core.visualize import MoleculeVisualizer, ProteinVisualizer, ComplexVisualizer
 from open_biomed.data import Molecule, Text, Protein, Pocket
 from open_biomed.tasks.aidd_tasks.protein_molecule_docking import VinaDockTask
 
@@ -45,6 +43,7 @@ def test_pocket_molecule_docking():
         pocket=pocket,
     )
     print(outputs)
+    return pipeline
 
 def test_structure_based_drug_design():
     pipeline = InferencePipeline(
@@ -60,16 +59,19 @@ def test_structure_based_drug_design():
         pocket=pocket
     )
     print(outputs)
-    try:
-        predicted_molecule = Molecule.from_binary_file(outputs[1][0])
-        vina = VinaDockTask(mode="dock")
-        print(vina.run(ligand, protein)[0])
-        print(vina.run(predicted_molecule, protein)[0])
-    except:
-        print("AutoDockVina not supported.")
     return pipeline
 
-
+def test_protein_molecule_docking():
+    try:
+        protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
+        ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
+        vina = VinaDockTask(mode="dock")
+        print(vina.run(ligand, protein)[0][0])
+        return vina
+    except:
+        print("AutoDockVina not supported.")
+    return vina
+    
 def test_molecule_question_answering():
     pipeline = InferencePipeline(
         task="molecule_question_answering",
@@ -115,7 +117,7 @@ def test_mutation_explanation():
     mutation = "H163A"
     function = Text.from_str("Able to cleave dimethylsulfonioproprionate (DMSP) in vitro, releasing dimethyl sulfide (DMS). DMS is the principal form by which sulfur is transported from oceans to the atmosphere. The real activity of the protein is however subject to debate and it is unclear whether it constitutes a real dimethylsulfonioproprionate lyase in vivo: the very low activity with DMSP as substrate suggests that DMSP is not its native substrate.")
     outputs = pipeline.run(
-        wild_type=protein,
+        protein=protein,
         mutation=mutation,
         #function=function,
     )
@@ -132,8 +134,8 @@ def test_mutation_engineering():
     protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
     prompt = Text.from_str("Strongly enhanced InsP6 kinase activity. The mutation in the ITPK protein causes a change in its catalytic activity.")
     outputs = pipeline.run(
-        wild_type=protein,
-        prompt=prompt
+        protein=protein,
+        text=prompt
     )
     print(outputs)
 
@@ -151,44 +153,6 @@ def test_protein_generation():
         "attention_mask": protein["attention_mask"].to("cuda:1"),
     }
     print(model.generate_loss(protein))
-
-def visualize_molecule():
-    #os.system("rm ./tmp/*.png")
-    #os.system("rm ./tmp/*.gif")
-    pipeline = MoleculeVisualizer()
-    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/pubchem_240.pkl")
-    outputs = pipeline.run(
-        ligand, config="ball_and_stick", rotate=False
-    )
-    oss_file_path = oss_warpper.generate_file_name(outputs)
-    url = oss_warpper.upload(oss_file_path, outputs)
-    print(url)
-    return pipeline
-
-def visualize_protein():
-    #os.system("rm ./tmp/*.png")
-    #os.system("rm ./tmp/*.gif")
-    pipeline = ProteinVisualizer()
-    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-    outputs = pipeline.run(protein=protein, config="cartoon", rotate=False)
-    print(outputs)
-    return pipeline
-
-def visualize_complex():
-    #os.system("rm ./tmp/*.png")
-    #os.system("rm ./tmp/*.gif")
-    pipeline = ComplexVisualizer()
-    ligand = Molecule.from_binary_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/pubchem_240.pkl")
-    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/pdb_6LVN.pdb")
-    try:
-        outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
-        oss_file_path = oss_warpper.generate_file_name(outputs)
-        url = oss_warpper.upload(oss_file_path, outputs)
-        print(url)
-    except:
-        print("visualize_complex failed")
-
-    return pipeline
 
 
 # TODO: support other datasets
@@ -210,9 +174,6 @@ INFERENCE_UNIT_TESTS = {
     "text_based_molecule_editing": test_text_based_molecule_editing,
     "pocket_molecule_docking": test_pocket_molecule_docking,
     "structure_based_drug_design": test_structure_based_drug_design,
-    "visualize_molecule": visualize_molecule,
-    "visualize_protein": visualize_protein,
-    "visualize_complex": visualize_complex,
     "molecule_question_answering": test_molecule_question_answering,
     "protein_question_answering": test_protein_question_answering,
     "mutation_explanation": test_mutation_explanation,

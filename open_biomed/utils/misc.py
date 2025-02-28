@@ -64,7 +64,7 @@ def wrap_and_select_outputs(outputs: Any, context: Optional[TextIO]=None) -> Dic
         outputs = outputs[0]
     if isinstance(outputs, list):
         selected = random.randint(0, len(outputs) - 1)
-        if len(outputs) > 0 and context is not None:
+        if len(outputs) > 1 and context is not None:
             context.write(f"Selected {selected}th output for downstream tools.\n")
         outputs = outputs[selected]
     if isinstance(outputs, tuple):

@@ -286,7 +286,6 @@ class InferencePipeline(Pipeline, Tool):
 
     def run(self, batch_size: Union[int, str]="max", *args, **kwargs) -> Any:
         logging.debug(f"Input: {kwargs}")
-        
         for key in kwargs:
             if not isinstance(kwargs[key], list):
                 kwargs[key] = [kwargs[key]]

@@ -16,6 +16,14 @@ class LazyDictForTool(dict):
             self[key] = test_molecule_question_answering()
         elif key == "protein_question_answering":
             self[key] = test_protein_question_answering()
+        elif key == "mutation_explanation":
+            self[key] = test_mutation_explanation()
+        elif key == "mutation_engineering":
+            self[key] = test_mutation_engineering()
+        elif key == "pocket_molecule_docking":
+            self[key] = test_pocket_molecule_docking()
+        elif key == "protein_molecule_docking_score":
+            self[key] = test_protein_molecule_docking()
         elif key == "protein_binding_site_prediction":
             self[key] = Protein_Binding_Site_Prediction()
         elif key == "visualize_molecule":
@@ -24,6 +32,8 @@ class LazyDictForTool(dict):
             self[key] = ProteinVisualizer()
         elif key == "visualize_complex":
             self[key] = ComplexVisualizer()
+        elif key == "visualize_protein_pocket":
+            self[key] = ProteinPocketVisualizer()
         elif key == "molecule_name_request":
             self[key] = PubChemRequester(db_url="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{accession}/SDF")
         elif key == "molecule_structure_request":

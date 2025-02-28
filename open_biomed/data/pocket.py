@@ -34,6 +34,7 @@ class Pocket:
         self.atoms = None
         self.conformer = None
         self.orig_indices = None         # Which part of the protein it belongs to
+        self.orig_protein = None
         self.name = name
 
     @classmethod
@@ -61,6 +62,7 @@ class Pocket:
                 pocket.conformer.append(atom['pos'])
         pocket.conformer = np.array(pocket.conformer)
         pocket.orig_indices = indices
+        pocket.orig_protein = protein
         return pocket
     
     @classmethod
@@ -83,6 +85,12 @@ class Pocket:
         if not os.path.exists(file) or overwrite:
             pickle.dump(self, open(file, "wb"))
         return file
+
+    def __str__(self) -> str:
+        if self.orig_protein is not None:
+            return "A pocket from protein " + str(self.orig_protein) + " at positions " + ",".join([str(idx) for idx in self.orig_indices])
+        else:
+            return "A pocket"
 
 def estimate_ligand_atom_num(pocket: Pocket) -> int:
     dist = spatial.distance.pdist(pocket.conformer, metric='euclidean')

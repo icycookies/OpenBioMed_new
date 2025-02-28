@@ -5,10 +5,13 @@ import copy
 import json
 import numpy as np
 import os
+import subprocess
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# from open_biomed.core.pipeline import Pipeline
 from open_biomed.core.tool_registry import TOOLS
+from open_biomed.core.visualize import Visualizer
 from open_biomed.utils.config import Config
 from open_biomed.utils.misc import wrap_and_select_outputs, create_tool_input
 
@@ -23,9 +26,11 @@ def get_str_from_dict(input: Dict[str, Any]) -> str:
 
 class WorkflowNode():
     def __init__(self,
+        name: str,
         executable: Any,
         inputs: Dict[str, Any]={},
     ) -> None:
+        self.name = name
         self.executable = executable
         self.inputs = {}
         for key, value in inputs.items():
@@ -39,8 +44,9 @@ class Workflow():
         self.edges = []
         for tool in config.tools:
             self.nodes.append(WorkflowNode(
+                name=tool["name"],
                 executable=TOOLS[tool["name"]],
-                inputs=tool["inputs"]
+                inputs=tool.get("inputs", {})
             ))
         for edge in config.edges:
             self.edges.append((edge["start"], edge["end"]))
@@ -71,6 +77,20 @@ class Workflow():
                 context.write(f"Next we execute Tool No.{u + 1}.\n The inputs of this tool are: {get_str_from_dict(self.nodes[u].inputs)}\n")
                 if getattr(self.nodes[u].executable, "requires_async", False):
                     outputs = asyncio.run(self.nodes[u].executable.run(**self.nodes[u].inputs))
+                elif isinstance(self.nodes[u].executable, Visualizer):
+                    # Execute visualization in a subprocess to avoid internal errors of PyMol when an InferencePipeline object is created
+                    vis_process = [
+                        "python3", "./open_biomed/core/visualize.py", 
+                        "--task", self.nodes[u].name,
+                        "--save_output_filename", "./tmp/visualization_file.txt",
+                    ]
+                    for key, value in self.nodes[u].inputs.items():
+                        if key in ["molecule", "protein", "pocket"]:
+                            vis_process.append(f"--{key}")
+                            vis_process.append(value.save_binary())
+                    subprocess.Popen(vis_process).communicate()
+                    outputs = open("./tmp/visualization_file.txt", "r").read()
+                    outputs = [outputs], [outputs]
                 else:
                     outputs = self.nodes[u].executable.run(**self.nodes[u].inputs)
                 outputs = wrap_and_select_outputs(outputs, context)
@@ -80,9 +100,10 @@ class Workflow():
                     if in_deg[out_node] == 0:
                         queue.append(out_node)
                     for key, value in outputs.items():
-                        self.nodes[out_node].inputs[key] = value
+                        self.nodes[out_node].inputs[key] = copy.deepcopy(value)
 
 if __name__ == "__main__":
-    config = Config(config_file="./configs/workflow/demo.yaml")
+    config = Config(config_file="./configs/workflow/drug_design.yaml")
     workflow = Workflow(config)
-    workflow.run(num_repeats=1, context=open("./logs/workflow_outputs.txt", "w"))
+    workflow.run(num_repeats=10, context=open("./logs/workflow_outputs.txt", "w"))
+    # workflow.run(num_repeats=1)

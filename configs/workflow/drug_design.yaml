@@ -1,0 +1,80 @@
+tools:
+  - name: protein_pdb_request              # 0
+    inputs:
+      accession: 4EPT
+  - name: mutation_explanation             # 1
+    inputs:
+      mutation: G12C
+  - name: protein_binding_site_prediction  # 2
+  - name: visualize_protein_pocket         # 3
+  - name: structure_based_drug_design      # 4
+  - name: protein_molecule_docking_score   # 5
+  - name: text_based_molecule_editing      # 6
+    inputs:
+      text: The molecule should have lower liver toxicity.
+  - name: pocket_molecule_docking          # 7
+  - name: protein_molecule_docking_score   # 8
+  - name: visualize_complex                # 9
+  - name: molecule_question_answering      # 10
+    inputs:
+      text: I'd like to know the structural definition of a particular molecule. Can you provide it?
+  - name: molecule_question_answering      # 11
+    inputs:
+      text: Can you determine the octanol-water partition coefficient (log P) for this chemical and indicate whether it is considered high, moderate, or low?
+  - name: molecule_question_answering      # 12
+    inputs:
+      text: For this compound, what is the topological polar surface area (TPSA), and how does it rank in terms of high, moderate, or low?
+  - name: molecule_question_answering      # 13
+    inputs:
+      text: I'd like to know the specific count of rotatable bonds present in this compound, please.
+  - name: molecule_question_answering      # 14
+    inputs:
+      text: What is the count of hydrogen bond acceptor sites present in this molecular structure?
+  - name: molecule_question_answering      # 15
+    inputs:
+      text: I'm interested in the quantity of hydrogen bond donors present in this molecule. Can you provide that information?
+  - name: molecule_structure_request       # 16
+edges:
+  - start: 0
+    end: 1
+  - start: 0
+    end: 2
+  - start: 0
+    end: 3
+  - start: 2
+    end: 3
+  - start: 2
+    end: 4
+  - start: 0
+    end: 5
+  - start: 4
+    end: 5
+  - start: 4
+    end: 6
+  - start: 2
+    end: 7
+  - start: 6
+    end: 7
+  - start: 0
+    end: 8
+  - start: 7
+    end: 8
+  - start: 0
+    end: 9
+  - start: 7
+    end: 9
+  - start: 7
+    end: 10
+  - start: 7
+    end: 11
+  - start: 7
+    end: 12
+  - start: 7
+    end: 13
+  - start: 7
+    end: 14
+  - start: 7
+    end: 15
+  - start: 7
+    end: 16
+  
