@@ -54,12 +54,13 @@ class Pocket:
     @classmethod
     def from_protein_subseq(cls, protein: Protein, indices: List[int]) -> Self:
         pocket = cls()
-        pocket.atoms, pocket.conformer = [], []
+        pocket.atoms, pocket.conformer, pocket.orig_indices = [], [], []
         for i in indices:
             for atom_i in protein.residues[i].atoms:
                 atom = protein.all_atom[atom_i]
                 pocket.atoms.append(atom)
                 pocket.conformer.append(atom['pos'])
+            pocket.orig_indices.append(protein.residues[i].res_id)
         pocket.conformer = np.array(pocket.conformer)
         pocket.orig_indices = indices
         pocket.orig_protein = protein

@@ -38,6 +38,8 @@ class LazyDictForTool(dict):
             self[key] = PubChemRequester(db_url="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{accession}/SDF")
         elif key == "molecule_structure_request":
             self[key] = PubChemStructureRequester()
+        elif key == "protein_uniprot_request":
+            self[key] = UniProtRequester()
         elif key == "protein_pdb_request":
             self[key] = PDBRequester()
         elif key == "web_search":

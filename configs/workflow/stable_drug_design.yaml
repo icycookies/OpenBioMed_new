@@ -1,0 +1,92 @@
+tools:
+  - name: visualize_protein_pocket         # 0
+    inputs:
+      protein: ./tmp/sbdd/4xli_B.pdb
+      pocket: ./tmp/sbdd/4xli_B_ref_pocket.pkl
+  - name: structure_based_drug_design      # 1
+    inputs:
+      pocket: ./tmp/sbdd/4xli_B_ref_pocket.pkl
+  - name: protein_molecule_docking_score   # 2
+    inputs:
+      protein: ./tmp/sbdd/4xli_B.pdb
+  - name: text_based_molecule_editing      # 3
+    inputs:
+      text: The molecule should have lower liver toxicity.
+  - name: pocket_molecule_docking          # 4
+    inputs:
+      pocket: ./tmp/sbdd/4xli_B_ref_pocket.pkl
+  - name: protein_molecule_docking_score   # 5
+    inputs:
+      protein: ./tmp/sbdd/4xli_B.pdb
+  - name: visualize_complex                # 6
+    inputs:
+      protein: ./tmp/sbdd/4xli_B.pdb
+  - name: visualize_complex                # 7
+    inputs:
+      protein: ./tmp/sbdd/4xli_B.pdb
+  - name: molecule_question_answering      # 8
+    inputs:
+      text: I'd like to know the structural definition of a particular molecule. Can you provide it?
+  - name: molecule_question_answering      # 9
+    inputs:
+      text: I'd like to know the specific count of rotatable bonds present in this compound, please.
+  - name: molecule_question_answering      # 10
+    inputs:
+      text: What is the count of hydrogen bond acceptor sites present in this molecular structure?
+  - name: molecule_question_answering      # 11
+    inputs:
+      text: I'm interested in the quantity of hydrogen bond donors present in this molecule. Can you provide that information?
+  - name: molecule_question_answering      # 12
+    inputs:
+      text: I'd like to know the structural definition of a particular molecule. Can you provide it?
+  - name: molecule_question_answering      # 13
+    inputs:
+      text: I'd like to know the specific count of rotatable bonds present in this compound, please.
+  - name: molecule_question_answering      # 14
+    inputs:
+      text: What is the count of hydrogen bond acceptor sites present in this molecular structure?
+  - name: molecule_question_answering      # 15
+    inputs:
+      text: I'm interested in the quantity of hydrogen bond donors present in this molecule. Can you provide that information?
+  - name: molecule_property_prediction     # 16
+    inputs:
+      task: SIDER
+  - name: molecule_property_prediction     # 17
+    inputs:
+      task: SIDER
+edges:
+  - start: 1
+    end: 2
+  - start: 1
+    end: 3
+  - start: 1
+    end: 4
+  - start: 3
+    end: 4
+  - start: 4
+    end: 5
+  - start: 3
+    end: 6
+  - start: 1
+    end: 7
+  - start: 1
+    end: 8
+  - start: 1
+    end: 9
+  - start: 1
+    end: 10
+  - start: 1
+    end: 11
+  - start: 3
+    end: 12
+  - start: 3
+    end: 13
+  - start: 3
+    end: 14
+  - start: 3
+    end: 15
+  - start: 1
+    end: 16
+  - start: 3
+    end: 17
+  

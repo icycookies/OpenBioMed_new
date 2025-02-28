@@ -1,0 +1,22 @@
+tools:
+  - name: protein_uniprot_request        # 0
+    inputs:
+      accession: P42212
+  - name: protein_question_answering     # 1
+    inputs:
+      text: What are the predicted domains or motifs present in this protein sequence?
+  - name: protein_question_answering     # 2
+    inputs:
+      text: Does the protein sequence suggest any specific biological role or activity?
+  - name: mutation_engineering           # 3
+    inputs:
+      text: Leads to enhanced fluorescence at 37 degrees Celsius.
+      return_sequence: True
+  - name: mutation_engineering           # 4
+    inputs:
+      text: Leads to enhanced fluorescence at 37 degrees Celsius.
+      return_sequence: True
+  - name: mutation_engineering           # 5
+    inputs:
+      text: Leads to enhanced fluorescence at 37 degrees Celsius.
+      return_sequence: True

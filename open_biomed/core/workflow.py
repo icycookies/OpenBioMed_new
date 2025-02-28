@@ -103,7 +103,7 @@ class Workflow():
                         self.nodes[out_node].inputs[key] = copy.deepcopy(value)
 
 if __name__ == "__main__":
-    config = Config(config_file="./configs/workflow/drug_design.yaml")
+    config = Config(config_file="./configs/workflow/stable_drug_design.yaml")
     workflow = Workflow(config)
-    workflow.run(num_repeats=10, context=open("./logs/workflow_outputs.txt", "w"))
+    asyncio.run(workflow.run(num_repeats=1, context=open("./logs/workflow_outputs.txt", "w")))
     # workflow.run(num_repeats=1)

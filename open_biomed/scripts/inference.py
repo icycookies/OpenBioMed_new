@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import argparse
 
-from open_biomed.core.pipeline import InferencePipeline
+from open_biomed.core.pipeline import InferencePipeline, EnsemblePipeline
 from open_biomed.data import Molecule, Text, Protein, Pocket
 from open_biomed.tasks.aidd_tasks.protein_molecule_docking import VinaDockTask
 
@@ -157,16 +157,27 @@ def test_protein_generation():
 
 # TODO: support other datasets
 def test_molecule_property_prediction():
-    pipeline = InferencePipeline(
-        task="molecule_property_prediction",
-        model="graphmvp",
-        model_ckpt="/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/logs/molecule_property_prediction/graphmvp-BBBP/train/checkpoints/last.ckpt",
-        device="cuda:0"
-    )
+    OUTPUT_PROMPTS = {
+        "BBBP": "The blood-brain barrier penetration of the molecule is {output}",
+        "SIDER": "The possibility of the molecule to exhibit the side effects are:\n Hepatobiliary disorders: {output[0]:.4f}\n Metabolism and nutrition disorders: {output[1]:.4f}\nProduct issues: {output[2]:.4f}\nEye disorders: {output[3]:.4f}\nInvestigations: {output[4]:.4f}\nMusculoskeletal and connective tissue disorders: {output[5]:.4f}\nGastrointestinal disorders :{output[6]:.4f}\nSocial circumstances: {output[7]:.4f}\nImmune system disorders: {output[8]:.4f}\nReproductive system and breast disorders: {output[9]:.4f}\nNeoplasms benign, malignant and unspecified (incl cysts and polyps): {output[10]:.4f}\nGeneral disorders and administration site conditions: {output[11]:.4f}\nEndocrine disorders: {output[12]:.4f}\nSurgical and medical procedures: {output[13]:.4f}\nVascular disorders: {output[14]:.4f}\nBlood and lymphatic system disorders: {output[15]:.4f}\nSkin and subcutaneous tissue disorders: {output[16]:.4f}\nCongenital, familial and genetic disorders: {output[17]:.4f}\nInfections and infestations: {output[18]:.4f}\nRespiratory, thoracic and mediastinal disorders: {output[19]:.4f}\nPsychiatric disorders: {output[20]:.4f}\nRenal and urinary disorders: {output[21]:.4f}\nPregnancy, puerperium and perinatal conditions: {output[22]:.4f}\nEar and labyrinth disorders: {output[23]:.4f}\nCardiac disorders: {output[24]:.4f}\nNervous system disorders: {output[25]:.4f}\nInjury, poisoning and procedural complications: {output[26]:.4f}\n"
+    }
+    pipelines = {}
+    for task in OUTPUT_PROMPTS:
+        pipelines[task] = InferencePipeline(
+            task="molecule_property_prediction",
+            model="graphmvp",
+            model_ckpt=f"/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/logs/molecule_property_prediction/graphmvp-{task}/train/checkpoints/last.ckpt",
+            additional_config=f"./configs/dataset/{task.lower()}.yaml",
+            device="cuda:0",
+            output_prompt=OUTPUT_PROMPTS[task],
+        )
+    pipeline = EnsemblePipeline(pipelines)
     input_smiles = "Nc1[nH]c(C(=O)c2ccccc2)c(-c2ccccn2)c1C(=O)c1c[nH]c2ccc(Br)cc12"
     outputs = pipeline.run(
-        molecule=Molecule.from_smiles(input_smiles)
+        molecule=Molecule.from_smiles(input_smiles),
+        task="SIDER"
     )
+    print(outputs)
     return pipeline
 
 

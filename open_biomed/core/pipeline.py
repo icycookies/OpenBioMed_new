@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 from typing_extensions import Any
 
 import argparse
@@ -233,6 +233,7 @@ class InferencePipeline(Pipeline, Tool):
         task: str="",
         model: str="",
         model_ckpt: str="",
+        additional_config: Optional[str]=None,
         logging_level: str="info",
         device: str="cpu",
         output_prompt: Optional[str]=None,
@@ -241,6 +242,8 @@ class InferencePipeline(Pipeline, Tool):
         super().__init__()
 
         self.cfg = Config(config_file=f"./configs/model/{model}.yaml")
+        if additional_config is not None:
+            self.cfg = merge_config(self.cfg, Config(config_file=additional_config))
         self.cfg.task = task
         self.cfg.model_ckpt = model_ckpt
         self.cfg.device = device
@@ -358,3 +361,16 @@ class InferencePipeline(Pipeline, Tool):
             return [self.output_prompt.format(output=output, **kwargs) for output in outputs], files
         else:
             return outputs, files
+
+class EnsemblePipeline(Tool):
+    def __init__(self, pipelines: Dict[str, InferencePipeline]) -> None:
+        super().__init__()
+        self.pipelines = pipelines
+
+    def print_usage(self):
+        for key, value in self.pipelines.items():
+            return value.print_usage()
+        
+    def run(self, **kwargs):
+        task = kwargs.pop("task")
+        return self.pipelines[task].run(**kwargs)

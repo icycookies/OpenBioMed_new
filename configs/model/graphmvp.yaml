@@ -7,7 +7,6 @@ model:
   gnn_type: gin
   graph_pooling: mean
   hf_model_name_or_path: /AIRvePFS/dair/yk-data/projects/OpenBioMed_luoyz/ckpts/gnn_ckpts/graphmvp/pretraining_model.pth
-  dataset_name: !ENV ${dataset_name}
 
 
 dataset:

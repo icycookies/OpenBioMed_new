@@ -394,4 +394,4 @@ class GraphMVP(MoleculePropertyPredictionModel):
         molecule
     ) -> Dict[str, torch.Tensor]:
         pred = self.encode_mol(molecule)
-        return pred
+        return torch.sigmoid(pred)
