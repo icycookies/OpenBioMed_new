@@ -32,6 +32,7 @@ class BioMedGPTR1Featurizer(Featurizer):
     ) -> None:
         super().__init__()
         self.molecule_featurizer = MolGraphFeaturizer({"name": "BaseGNN"})
+        esm_tokenizer = EsmTokenizer.from_pretrained(esm_tokenizer)
         self.protein_featurizer = ProteinTransformersFeaturizer(esm_tokenizer, protein_max_length)
         self.llm_tokenizer = AutoTokenizer.from_pretrained(llama_tokenizer, model_max_length=text_max_length, truncation=True, truncation_side="left")
 

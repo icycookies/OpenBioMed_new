@@ -16,7 +16,7 @@ from open_biomed.core.tool import Tool
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class Protein_Binding_Site_Prediction(Tool):
+class ProteinBindingSitePrediction(Tool):
     def __init__(self, output_path: str = "./tmp/p2pocket") -> None:
         self.output_path = output_path
     
@@ -88,6 +88,6 @@ class Protein_Binding_Site_Prediction(Tool):
 
 if __name__ == "__main__":
     pdb_file = "third_party/p2rank_2.5/test_data/1fbl.pdb"
-    pocket_predictor = Protein_Binding_Site_Prediction()
+    pocket_predictor = ProteinBindingSitePrediction()
     pocket = pocket_predictor.run(pdb_file)
     print(pocket)

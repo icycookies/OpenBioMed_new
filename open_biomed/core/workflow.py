@@ -56,7 +56,7 @@ class Workflow():
         yml_file = parse_frontend(file)
         return cls(config=Config(config_file=yml_file))
 
-    def run(self, num_repeats=10, context: TextIO=sys.stdout) -> Any:
+    async def run(self, num_repeats=10, context: TextIO=sys.stdout) -> Any:
         context.write("Now we have a workflow with the following tools: \n")
         for i, node in enumerate(self.nodes):
             context.write(f"Tool No.{i + 1}: {node.executable.print_usage()}\n\n\n")
@@ -76,7 +76,7 @@ class Workflow():
                 u = queue.pop(0)
                 context.write(f"Next we execute Tool No.{u + 1}.\n The inputs of this tool are: {get_str_from_dict(self.nodes[u].inputs)}\n")
                 if getattr(self.nodes[u].executable, "requires_async", False):
-                    outputs = asyncio.run(self.nodes[u].executable.run(**self.nodes[u].inputs))
+                    outputs = asyncio.create_task(self.nodes[u].executable.run(**self.nodes[u].inputs))
                 elif isinstance(self.nodes[u].executable, Visualizer):
                     # Execute visualization in a subprocess to avoid internal errors of PyMol when an InferencePipeline object is created
                     vis_process = [
