@@ -181,6 +181,20 @@ def test_molecule_property_prediction():
     return pipeline
 
 
+def test_protein_folding():
+    pipeline = InferencePipeline(
+        task="protein_folding",
+        model="esmfold",
+        model_ckpt="/AIRvePFS/dair/users/ailin/.cache/huggingface/hub/esmfold_v1/pytorch_model.bin",
+        device="cuda:7"
+    )
+    protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
+    outputs = pipeline.run(
+        protein=protein,
+    )
+    print(outputs)
+    return pipeline
+
 INFERENCE_UNIT_TESTS = {
     "text_based_molecule_editing": test_text_based_molecule_editing,
     "pocket_molecule_docking": test_pocket_molecule_docking,
@@ -191,11 +205,12 @@ INFERENCE_UNIT_TESTS = {
     "mutation_engineering": test_mutation_engineering,
     "protein_generation": test_protein_generation,
     "molecule_property_prediction": test_molecule_property_prediction,
+    "protein_folding": test_protein_folding,
 }
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=str, default="text_based_molecule_editing")
+    parser.add_argument("--task", type=str, default="protein_folding")
     args = parser.parse_args()
 
     if args.task not in INFERENCE_UNIT_TESTS:

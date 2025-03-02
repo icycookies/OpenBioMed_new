@@ -10,6 +10,7 @@ from open_biomed.tasks.multi_modal_tasks.mutation_text_translation import Mutati
 from open_biomed.tasks.aidd_tasks.molecule_property_prediction import MoleculePropertyPrediction
 from open_biomed.tasks.aidd_tasks.protein_molecule_docking import PocketMoleculeDocking
 from open_biomed.tasks.aidd_tasks.structure_based_drug_design import StructureBasedDrugDesign
+from open_biomed.tasks.aidd_tasks.protein_folding import ProteinFolding
 
 TASK_REGISTRY = {
     "text_based_molecule_editing": TextMoleculeEditing,
@@ -23,6 +24,7 @@ TASK_REGISTRY = {
     "structure_based_drug_design": StructureBasedDrugDesign,
     "mutation_explanation": MutationExplanation,
     "mutation_engineering": MutationEngineering,
+    "protein_folding": ProteinFolding
 }
 
 def check_compatible(task_name: str, dataset_name: Optional[str], model_name: Optional[str]) -> None:

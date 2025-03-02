@@ -209,6 +209,19 @@ async def run_pipeline(request: TaskRequest):
             )
             output = outputs[1][0]
             output = {"task": task_name, "model": model, "pocket": output}
+        elif task_name == "protein_folding":
+            pipeline = TOOLS["protein_folding"]
+            required_inputs = ["protein"]
+            if not all(key in request for key in required_inputs):
+                raise HTTPException(
+                    status_code=400, detail="protein are required for protein_folding task")
+            protein = IO_Reader.get_protein(request["protein"])
+            outputs = pipeline.run(
+                protein=protein
+            )
+            pdb_string = outputs[0]
+            # Save the protein as a pdb file
+            output = {"task": task_name, "model": model, "protein": pdb_string}
         else:
             raise HTTPException(status_code=400, detail="Invalid task_name")
         return output

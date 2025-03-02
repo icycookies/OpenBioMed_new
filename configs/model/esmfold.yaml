@@ -1,0 +1,7 @@
+model:
+  name: esmfold
+  hf_model_name_or_path: /AIRvePFS/dair/users/ailin/.cache/huggingface/hub/esmfold_v1
+  max_length: 1024
+  half: True
+  chunk_size: 64
+  use_fp16_for_esm: True

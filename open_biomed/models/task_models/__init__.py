@@ -7,3 +7,4 @@ from open_biomed.models.task_models.structure_based_drug_design import *
 from open_biomed.models.task_models.protein_molecule_docking import *
 from open_biomed.models.task_models.protein_text_translation import *
 from open_biomed.models.task_models.molecule_property_prediction import *
+from open_biomed.models.task_models.protein_folding import *

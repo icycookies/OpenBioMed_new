@@ -25,6 +25,8 @@ class LazyDictForTool(dict):
             self[key] = test_pocket_molecule_docking()
         elif key == "protein_molecule_docking_score":
             self[key] = test_protein_molecule_docking()
+        elif key == "protein_folding":
+            self[key] = test_protein_folding()
         elif key == "protein_binding_site_prediction":
             self[key] = ProteinBindingSitePrediction()
         elif key == "visualize_molecule":
