@@ -1,8 +1,9 @@
 from open_biomed.core.web_request import *
 from open_biomed.core.visualize import *
-from open_biomed.scripts.inference import *
 from open_biomed.core.third_party_server import *
 from open_biomed.core.llm_request import KeyInfoExtractor
+from open_biomed.data.protein import MutationToSequence
+from open_biomed.scripts.inference import *
 
 # TODO: Add pocket prediction as a tool
 class LazyDictForTool(dict):
@@ -21,6 +22,8 @@ class LazyDictForTool(dict):
             self[key] = test_mutation_explanation()
         elif key == "mutation_engineering":
             self[key] = test_mutation_engineering()
+        elif key == "apply_mutation_to_sequence":
+            self[key] = MutationToSequence()
         elif key == "pocket_molecule_docking":
             self[key] = test_pocket_molecule_docking()
         elif key == "protein_molecule_docking_score":

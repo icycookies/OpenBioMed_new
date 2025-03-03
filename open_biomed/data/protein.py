@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Self
 
 from datetime import datetime
@@ -258,11 +258,14 @@ class MutationToSequence(Tool):
         super().__init__()
 
     def print_usage(self) -> str:
-        return 'Apply a single-site mutation to the wild-type sequence' + \
-               'Inputs: {"protein": wild-type protein, "mutation": a mutation}' + \
-               'Outputs: a mutated protein'
+        return 'Apply a single-site mutation to the wild-type sequence\n' + \
+               'Inputs: {"protein": wild-type protein, "mutation": a mutation}\n' + \
+               'Outputs: a mutated protein\n'
 
-    def run(self, protein: List[Protein], mutation: List[str]) -> Tuple[List[Protein], List[str]]:
+    def run(self, protein: Union[List[Protein], Protein], mutation: Union[List[str], str]) -> Tuple[List[Protein], List[str]]:
+        if not isinstance(protein, list):
+            protein = [protein]
+            mutation = [mutation]
         mutants, files = [], []
         for i in range(len(protein)):
             seq = protein[i].sequence

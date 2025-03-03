@@ -11,12 +11,47 @@ tools:
   - name: mutation_engineering           # 3
     inputs:
       text: Leads to enhanced fluorescence at 37 degrees Celsius.
-      return_sequence: True
-  - name: mutation_engineering           # 4
-    inputs:
-      text: Leads to enhanced fluorescence at 37 degrees Celsius.
-      return_sequence: True
+  - name: apply_mutation_to_sequence     # 4
   - name: mutation_engineering           # 5
     inputs:
       text: Leads to enhanced fluorescence at 37 degrees Celsius.
-      return_sequence: True
+  - name: apply_mutation_to_sequence     # 6
+  - name: mutation_engineering           # 7
+    inputs:
+      text: Leads to enhanced fluorescence at 37 degrees Celsius.
+  - name: apply_mutation_to_sequence     # 8
+  - name: protein_folding                # 9
+  - name: visualize_protein              # 10
+edges:
+  - start: 0
+    end: 1
+  - start: 0
+    end: 2
+  - start: 0
+    end: 3
+  - start: 0
+    end: 4
+  - start: 3
+    end: 4
+    name_mapping:
+      output: mutation
+  - start: 4
+    end: 5
+  - start: 4
+    end: 6
+  - start: 5
+    end: 6
+    name_mapping:
+      output: mutation
+  - start: 6
+    end: 7
+  - start: 6
+    end: 8
+  - start: 7
+    end: 8
+    name_mapping:
+      output: mutation
+  - start: 8
+    end: 9
+  - start: 9
+    end: 10
