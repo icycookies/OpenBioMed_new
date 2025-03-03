@@ -82,7 +82,7 @@ class PubChemStructureRequester(Requester):
         timeout: int=30
     ) -> None:
         super().__init__()
-        self.db_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/fastsimilarity_2d/smiles/{accession}/cids/JSON?Threshold={threshould}&MaxRecords={max_records}"
+        self.db_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/fastsimilarity_2d/smiles/{accession}/cids/JSON?Threshold={threshold}&MaxRecords={max_records}"
         self.molecule_requester = PubChemRequester()
         self.timeout = timeout
 
@@ -189,10 +189,7 @@ class WebSearchRequester(Tool):
         ])
 
     def run(self, query: str) -> Tuple[List[str], List[str]]:
-        """
-        对应action ID: 23
-        针对问题进行检索
-        """
+
         headers = {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer 1234567890'

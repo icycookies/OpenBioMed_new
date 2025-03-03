@@ -3,7 +3,8 @@ from pydantic import BaseModel
 import torch.nn.functional as F
 import uvicorn
 import asyncio
-from typing import Optional
+import subprocess
+from typing import Optional, List, Dict, Callable, Any
 
 # import function
 from open_biomed.data import Molecule, Text, Protein, Pocket
@@ -14,20 +15,37 @@ from open_biomed.core.tool_registry import TOOLS
 app = FastAPI()
 
 
-# Define the request body model
-class TaskRequest(BaseModel):
-    task: str
-    model: str
-    molecule: Optional[str] = None
-    protein: Optional[str] = None
-    pocket: Optional[str] = None
-    text: Optional[str] = None
-    dataset: Optional[str] = None
-    query: Optional[str] = None
+class IO_Reader:
+    def __init__(self):
+        pass
+    @staticmethod
+    def get_molecule(string):
+        if string.endswith(".sdf"):
+            return Molecule.from_sdf_file(string)
+        elif string.endswith(".pkl"):
+            return Molecule.from_binary_file(string)
+        else:
+            return Molecule.from_smiles(string)
+    
+    @staticmethod
+    def get_protein(string):
+        if string.endswith(".pdb"):
+            return Protein.from_pdb_file(string)
+        elif string.endswith(".pkl"):
+            return Protein.from_binary_file(string)
+        else:
+            return Protein.from_fasta(string)
 
-class SearchRequest(BaseModel):
-    task: str
-    query: str
+    @staticmethod
+    def get_pocket(string):
+        return Pocket.from_binary_file(string)
+
+    @staticmethod
+    def get_text(string):
+        return Text.from_str(string)
+
+
+
 
 molecule_property_prediction_prompt = {
     "BBBP": "The blood-brain barrier prediction result is {output}. "
@@ -65,165 +83,420 @@ molecule_property_prediction_prompt = {
 }
 
 
-class IO_Reader:
-    def __init__(self):
-        pass
-    @staticmethod
-    def get_molecule(string):
-        if string.endswith(".sdf"):
-            return Molecule.from_sdf_file(string)
-        elif string.endswith(".pkl"):
-            return Molecule.from_binary_file(string)
-        else:
-            return Molecule.from_smiles(string)
-    
-    @staticmethod
-    def get_protein(string):
-        if string.endswith(".pdb"):
-            return Protein.from_pdb_file(string)
-        elif string.endswith(".pkl"):
-            return Protein.from_binary_file(string)
-        else:
-            return Protein.from_fasta(string)
+# Define the request body model
+class TaskRequest(BaseModel):
+    task: str
+    model: Optional[str] = None
+    config: Optional[str] = None
+    molecule: Optional[str] = None
+    protein: Optional[str] = None
+    pocket: Optional[str] = None
+    text: Optional[str] = None
+    dataset: Optional[str] = None
+    query: Optional[str] = None
+    mutation: Optional[str] = None
 
-    @staticmethod
-    def get_text(string):
-        return Text.from_str(string)
+
+class SearchRequest(BaseModel):
+    task: str
+    query: Optional[str] = None
+    molecule: Optional[str] = None
+    threshold: Optional[str] = None
+
+
+class TaskConfig:
+    def __init__(self, task_name: str, required_inputs: List[str], pipeline_key: str, handler_function: Callable, is_async: bool = False):
+        self.task_name = task_name
+        self.required_inputs = required_inputs
+        self.pipeline_key = pipeline_key
+        self.handler_function = handler_function
+        self.is_async = is_async
+
+    def validate_inputs(self, request: Dict[str, Any]):
+        missing_inputs = [key for key in self.required_inputs if key not in request]
+        if missing_inputs:
+            raise HTTPException(status_code=400, detail=f"Missing required inputs: {', '.join(missing_inputs)}")
+
+
+
+class TaskLoader:
+    def __init__(self):
+        self.tasks = {}
+
+    def register_task(self, task_config: TaskConfig):
+        self.tasks[task_config.task_name] = task_config
+
+    def get_task(self, task_name: str):
+        task = self.tasks.get(task_name)
+        if not task:
+            raise HTTPException(status_code=400, detail="Invalid task_name")
+        return task
+
+
+
+# Handlers for run_pipeline
+def handle_text_based_molecule_editing(request: TaskRequest, pipeline):
+    required_inputs = ["molecule", "text"]
+    molecule = IO_Reader.get_molecule(request.molecule)
+    text = IO_Reader.get_text(request.text)
+    outputs = pipeline.run(molecule=molecule, text=text)
+    smiles = outputs[0][0].smiles
+    path = outputs[1][0]
+    return {"task": request.task, "model": request.model, "molecule": path, "molecule_preview": smiles}
+
+def handle_structure_based_drug_design(request: TaskRequest, pipeline):
+    required_inputs = ["pocket"]
+    pocket = Pocket.from_binary_file(request.pocket)
+    outputs = pipeline.run(pocket=pocket)
+    smiles = outputs[0][0].smiles
+    path = outputs[1][0]
+    return {"task": request.task, "model": request.model, "molecule": path, "molecule_preview": smiles}
+
+def handle_molecule_question_answering(request: TaskRequest, pipeline):
+    required_inputs = ["text", "molecule"]
+    text = IO_Reader.get_text(request.text)
+    molecule = IO_Reader.get_molecule(request.molecule)
+    outputs = pipeline.run(molecule=molecule, text=text)
+    text = outputs[0][0].str
+    return {"task": request.task, "model": request.model, "text": text}
+
+def handle_protein_question_answering(request: TaskRequest, pipeline):
+    required_inputs = ["text", "protein"]
+    text = IO_Reader.get_text(request.text)
+    protein = IO_Reader.get_protein(request.protein)
+    outputs = pipeline.run(protein=protein, text=text)
+    text = outputs[0][0].str
+    return {"task": request.task, "model": request.model, "text": text}
+
+def handle_visualize_molecule(request: TaskRequest, pipeline):
+    required_inputs = ["molecule"]
+    #ligand = Molecule.from_binary_file(request.molecule)
+    #outputs = pipeline.run(ligand, config="ball_and_stick", rotate=False)
+    vis_process = [
+                    "python3", "./open_biomed/core/visualize.py", 
+                    "--task", "visualize_molecule",
+                    "--molecule_config", request.config,
+                    "--save_output_filename", "./tmp/molecule_visualization_file.txt",
+                    "--molecule", request.molecule]
+    subprocess.Popen(vis_process).communicate()
+    outputs = open("./tmp/molecule_visualization_file.txt", "r").read()
+    oss_file_path = oss_warpper.generate_file_name(outputs)
+    outputs = oss_warpper.upload(oss_file_path, outputs)
+    return {"task": request.task, "image": outputs}
+
+def handle_visualize_complex(request: TaskRequest, pipeline):
+    required_inputs = ["protein", "molecule"]
+    #ligand = Molecule.from_binary_file(request.molecule)
+    #protein = Protein.from_pdb_file(request.protein)
+    #outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
+    vis_process = [
+                    "python3", "./open_biomed/core/visualize.py", 
+                    "--task", "visualize_complex",
+                    "--save_output_filename", "./tmp/complex_visualization_file.txt",
+                    "--molecule", request.molecule,
+                    "--protein", request.protein]
+    subprocess.Popen(vis_process).communicate()
+    outputs = open("./tmp/complex_visualization_file.txt", "r").read()
+    oss_file_path = oss_warpper.generate_file_name(outputs)
+    outputs = oss_warpper.upload(oss_file_path, outputs)
+    return {"task": request.task, "image": outputs}
+
+def handle_molecule_property_prediction(request: TaskRequest, pipeline):
+    required_inputs = ["molecule", "dataset"]
+    molecule = IO_Reader.get_molecule(request.molecule)
+    dataset = IO_Reader.get_text(request.dataset)
+    outputs = pipeline.run(molecule=molecule, task=dataset.str)
+
+    #output = outputs[0][0].cpu()
+    #output = F.softmax(output, dim=0).tolist()
+    return {"task": request.task, "model": request.model, "score": outputs[0][0]}
+
+def handle_protein_binding_site_prediction(request: TaskRequest, pipeline):
+    required_inputs = ["protein"]
+    protein = IO_Reader.get_protein(request.protein)
+    outputs = pipeline.run(protein=protein)
+    output = outputs[1][0]
+    pocket_preview = str(outputs[0][0])
+    return {"task": request.task, "model": request.model, "pocket": output, "pocket_preview": pocket_preview}
+
+def handle_protein_folding(request: TaskRequest, pipeline):
+    required_inputs = ["protein"]
+    protein = IO_Reader.get_protein(request.protein)
+    outputs = pipeline.run(protein=protein)
+    pdb_string = outputs[0]
+    return {"task": request.task, "model": request.model, "protein": pdb_string}
+
+
+# Handlers for web_search
+async def handle_molecule_name_request(request: SearchRequest, requester):
+    outputs = await requester.run(request.query)
+    smiles = outputs[0][0].smiles
+    output = outputs[1][0]
+    return {"task": request.task, "molecule": output, "molecule_preview": smiles}
+
+def handle_web_search(request: SearchRequest, requester):
+    outputs = requester.run(request.query)
+    outputs = outputs[0][0]
+    return {"task": request.task, "text": outputs}
+
+async def handle_molecule_structure_request(request: SearchRequest, requester):
+    molecule = IO_Reader.get_molecule(request.molecule)
+    threshold = request.threshold
+    outputs = await requester.run(molecule, threshold=float(threshold), max_records=1)
+    outputs = outputs[1][0]
+    return {"task": request.task, "text": outputs}
+
+
+async def handle_protein_uniprot_request(request: SearchRequest, requester):
+    outputs = await requester.run(request.query)
+    outputs = outputs[1][0]
+    return {"task": request.task, "text": outputs}
+
+
+async def handle_protein_pdb_request(request: SearchRequest, requester):
+    outputs = await requester.run(request.query)
+    outputs = outputs[1][0]
+    return {"task": request.task, "text": outputs}
+
+
+def handle_mutation_explanation(request: TaskRequest, pipeline):
+    required_inputs = ["protein", "mutation"]
+    mutation = request.mutation
+    protein = IO_Reader.get_protein(request.protein)
+    outputs = pipeline.run(protein=protein, mutation=mutation)
+    output = outputs[0][0]
+    return {"task": request.task, "model":request.model, "text": output}
+
+
+def handle_mutation_engineering(request: TaskRequest, pipeline):
+    required_inputs = ["protein", "text"]
+    protein = IO_Reader.get_protein(request.protein)
+    text = IO_Reader.get_text(request.text)
+    outputs = pipeline.run(protein=protein, text=text)
+    output = outputs[0][0]
+    return {"task": request.task, "model":request.model, "text": output}
+
+
+def handle_pocket_molecule_docking(request: TaskRequest, pipeline):
+    required_inputs = ["pocket", "molecule"]
+    pocket = Pocket.from_binary_file(request.pocket)
+    molecule = IO_Reader.get_molecule(request.molecule)
+    outputs = pipeline.run(pocket=pocket, molecule=molecule)
+    output = outputs[1][0]
+    return {"task": request.task, "model":request.model, "molecule": output}
+
+
+def handle_protein_molecule_docking_score(request: TaskRequest, pipeline):
+    required_inputs = ["protein", "molecule"]
+    protein = IO_Reader.get_protein(request.protein)
+    molecule = IO_Reader.get_molecule(request.molecule)
+    outputs = pipeline.run(protein=protein, molecule=molecule)
+    output = outputs[0][0]
+    return {"task": request.task, "model":request.model, "score": str(output)}
+
+
+def handle_visualize_protein(request: TaskRequest, pipeline):
+    required_inputs = ["protein"]
+    protein = IO_Reader.get_protein(request.protein)
+    vis_process = [
+                    "python3", "./open_biomed/core/visualize.py", 
+                    "--task", "visualize_protein",
+                    "--protein_config", request.config,
+                    "--save_output_filename", "./tmp/protein_visualization_file.txt",
+                    "--protein", request.protein]
+    subprocess.Popen(vis_process).communicate()
+    outputs = open("./tmp/protein_visualization_file.txt", "r").read()
+    oss_file_path = oss_warpper.generate_file_name(outputs)
+    outputs = oss_warpper.upload(oss_file_path, outputs)
+    return {"task": request.task, "image": outputs}
+
+
+def handle_visualize_protein_pocket(request: TaskRequest, pipeline):
+    required_inputs = ["protein", "pocket"]
+    protein = IO_Reader.get_protein(request.protein)
+    pocket = IO_Reader.get_pocket(request.pocket)
+    vis_process = [
+                    "python3", "./open_biomed/core/visualize.py", 
+                    "--task", "visualize_protein",
+                    "--save_output_filename", "./tmp/protein_pocket_visualization_file.txt",
+                    "--protein", request.protein,
+                    "--pocket", request.pocket]
+    subprocess.Popen(vis_process).communicate()
+    outputs = open("./tmp/protein_pocket_visualization_file.txt", "r").read()
+    oss_file_path = oss_warpper.generate_file_name(outputs)
+    outputs = oss_warpper.upload(oss_file_path, outputs)
+    return {"task": request.task, "image": outputs}
+
+
+
+
+TASK_CONFIGS = [
+    {
+        "task_name": "text_based_molecule_editing",
+        "required_inputs": ["molecule", "text"],
+        "pipeline_key": "text_based_molecule_editing",
+        "handler_function": handle_text_based_molecule_editing,
+        "is_async": False
+    },
+    {
+        "task_name": "structure_based_drug_design",
+        "required_inputs": ["pocket"],
+        "pipeline_key": "structure_based_drug_design",
+        "handler_function": handle_structure_based_drug_design,
+        "is_async": False
+    },
+    {
+        "task_name": "molecule_question_answering",
+        "required_inputs": ["text", "molecule"],
+        "pipeline_key": "molecule_question_answering",
+        "handler_function": handle_molecule_question_answering,
+        "is_async": False
+    },
+    {
+        "task_name": "protein_question_answering",
+        "required_inputs": ["text", "protein"],
+        "pipeline_key": "protein_question_answering",
+        "handler_function": handle_protein_question_answering,
+        "is_async": False
+    },
+    {
+        "task_name": "visualize_molecule",
+        "required_inputs": ["config", "molecule"],
+        "pipeline_key": "visualize_molecule",
+        "handler_function": handle_visualize_molecule,
+        "is_async": False
+    },
+    {
+        "task_name": "visualize_complex",
+        "required_inputs": ["protein", "molecule"],
+        "pipeline_key": "visualize_complex",
+        "handler_function": handle_visualize_complex,
+        "is_async": False
+    },
+    {
+        "task_name": "visualize_protein",
+        "required_inputs": ["protein"],
+        "pipeline_key": "visualize_protein",
+        "handler_function": handle_visualize_protein,
+        "is_async": False
+    },
+    {
+        "task_name": "visualize_protein_pocket",
+        "required_inputs": ["protein", "pocket"],
+        "pipeline_key": "visualize_protein_pocket",
+        "handler_function": handle_visualize_protein_pocket,
+        "is_async": False
+    },
+    {
+        "task_name": "molecule_property_prediction",
+        "required_inputs": ["molecule", "dataset"],
+        "pipeline_key": "molecule_property_prediction",
+        "handler_function": handle_molecule_property_prediction,
+        "is_async": False
+    },
+    {
+        "task_name": "protein_binding_site_prediction",
+        "required_inputs": ["protein"],
+        "pipeline_key": "protein_binding_site_prediction",
+        "handler_function": handle_protein_binding_site_prediction,
+        "is_async": False
+    },
+    {
+        "task_name": "protein_folding",
+        "required_inputs": ["protein"],
+        "pipeline_key": "protein_folding",
+        "handler_function": handle_protein_folding,
+        "is_async": False
+    },
+    {
+        "task_name": "molecule_name_request",
+        "required_inputs": ["query"],
+        "pipeline_key": "molecule_name_request",
+        "handler_function": handle_molecule_name_request,
+        "is_async": True
+    },
+    {
+        "task_name": "web_search",
+        "required_inputs": ["query"],
+        "pipeline_key": "web_search",
+        "handler_function": handle_web_search,
+        "is_async": False
+    },
+    {
+        "task_name": "molecule_structure_request",
+        "required_inputs": ["molecule", "threshold"],
+        "pipeline_key": "molecule_structure_request",
+        "handler_function": handle_molecule_structure_request,
+        "is_async": True
+    },
+    {
+        "task_name": "protein_uniprot_request",
+        "required_inputs": ["query"],
+        "pipeline_key": "protein_uniprot_request",
+        "handler_function": handle_protein_uniprot_request,
+        "is_async": True
+    },
+    {
+        "task_name": "protein_pdb_request",
+        "required_inputs": ["query"],
+        "pipeline_key": "protein_pdb_request",
+        "handler_function": handle_protein_pdb_request,
+        "is_async": True
+    },
+    {
+        "task_name": "mutation_explanation",
+        "required_inputs": ["mutation", "protein"],
+        "pipeline_key": "mutation_explanation",
+        "handler_function": handle_mutation_explanation,
+        "is_async": False
+    },
+    {
+        "task_name": "mutation_engineering",
+        "required_inputs": ["text", "protein"],
+        "pipeline_key": "mutation_engineering",
+        "handler_function": handle_mutation_engineering,
+        "is_async": False
+    },
+    {
+        "task_name": "pocket_molecule_docking",
+        "required_inputs": ["pocket", "molecule"],
+        "pipeline_key": "pocket_molecule_docking",
+        "handler_function": handle_pocket_molecule_docking,
+        "is_async": False
+    },
+    {
+        "task_name": "protein_molecule_docking_score",
+        "required_inputs": ["protein", "molecule"],
+        "pipeline_key": "protein_molecule_docking_score",
+        "handler_function": handle_protein_molecule_docking_score,
+        "is_async": False
+    }
+]
+
+
+task_loader = TaskLoader()
+
+for task_config in TASK_CONFIGS:
+    task_loader.register_task(TaskConfig(
+        task_name=task_config["task_name"],
+        required_inputs=task_config["required_inputs"],
+        pipeline_key=task_config["pipeline_key"],
+        handler_function=task_config["handler_function"],
+        is_async=task_config["is_async"]
+    ))
+
 
 
 
 @app.post("/run_pipeline/")
 async def run_pipeline(request: TaskRequest):
-    request = request.model_dump()
-    task_name = request["task"].lower()
-    model = request["model"].lower()
+    task_name = request.task.lower()
 
     try:
-        # Call the corresponding function based on the task name and get the pipeline instance
-        if task_name == "text_based_molecule_editing":
-            pipeline = TOOLS["text_based_molecule_editing"]
-            required_inputs = ["molecule", "text"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="molecule and text are required for text_based_molecule_editing task")
-            molecule = IO_Reader.get_molecule(request["molecule"])
-            text = IO_Reader.get_text(request["text"])
-            outputs = pipeline.run(
-                molecule=molecule,
-                text=text)
-            smiles = outputs[0][0].smiles
-            path = outputs[1][0]
-            output = {"task": task_name, "model": model, "molecule": path, "molecule_preview": smiles}
-        elif task_name == "structure_based_drug_design":
-            pipeline = TOOLS["structure_based_drug_design"]
-            required_inputs = ["pocket"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="protein and molecule are required for structure_based_drug_design task")
-            pocket = Pocket.from_binary_file(request["pocket"])
-            outputs = pipeline.run(
-                pocket=pocket
-            )
-            smiles = outputs[0][0].smiles
-            path = outputs[1][0]
-            output =  {"task": task_name, "model": model, "molecule": path, "molecule_preview": smiles}
-        elif task_name == "molecule_question_answering":
-            pipeline = TOOLS["molecule_question_answering"]
-            required_inputs = ["text", "molecule"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="text and molcule are required for molecule_question_answering task")
-            text = IO_Reader.get_text(request["text"])
-            molecule = IO_Reader.get_molecule(request["molecule"])
-            outputs = pipeline.run(
-                molecule=molecule,
-                text=text
-            )
-            text = outputs[0][0].str
-            output =  {"task": task_name, "model": model, "text": text}
-        elif task_name == "protein_question_answering":
-            pipeline = TOOLS["protein_question_answering"]
-            required_inputs = ["text", "protein"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="text and protein are required for protein_question_answering task")
-            text = IO_Reader.get_text(request["text"])
-            protein = IO_Reader.get_protein(request["protein"])
-            outputs = pipeline.run(
-                protein=protein,
-                text=text
-            )
-            text = outputs[0][0].str
-            output =  {"task": task_name, "model": model, "text": text}
-        elif task_name == "visualize_molecule":
-            pipeline = TOOLS["visualize_molecule"]
-            required_inputs = ["molecule"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="molecule are required for visualize_molecule task")
-            ligand = Molecule.from_binary_file(request["molecule"])
-            outputs = pipeline.run(ligand, config="ball_and_stick", rotate=False)
-            oss_file_path = oss_warpper.generate_file_name(outputs)
-            outputs = oss_warpper.upload(oss_file_path, outputs)
-            output = {"task": task_name, "image": outputs}
-        elif task_name == "visualize_complex":
-            pipeline = TOOLS["visualize_complex"]
-            required_inputs = ["protein", "molecule"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="protein and molecule are required for visualize_complex task")
-            ligand = Molecule.from_binary_file(request["molecule"])
-            protein = Protein.from_pdb_file(request["protein"])
-            outputs = pipeline.run(molecule=ligand, protein=protein, rotate=True)
-            oss_file_path = oss_warpper.generate_file_name(outputs)
-            outputs = oss_warpper.upload(oss_file_path, outputs)
-            output = {"task": task_name, "image": outputs}
-        elif task_name == "molecule_property_prediction":
-            pipeline = TOOLS["molecule_property_prediction"]
-            required_inputs = ["molecule", "dataset"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="molecule and dataset are required for molecule_property_prediction task")
-            molecule = IO_Reader.get_molecule(request["molecule"])
-            dataset = IO_Reader.get_text(request["dataset"])
-            outputs = pipeline.run(
-                molecule=molecule,
-                #dataset=dataset
-            )
-            output = outputs[0][0].cpu()
-            # softmax
-            output = F.softmax(output, dim=0).tolist()
-            #output = [round(x, 4) for x in output]
-            output = {"task": task_name, "model": model, "score": str(output[0])}
-            #output = {"score": format(float(outputs[0][0]), ".4f")}
-        elif task_name == "protein_binding_site_prediction":
-            pipeline = TOOLS["protein_binding_site_prediction"]
-            required_inputs = ["protein"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="protein are required for protein_binding_site_prediction task")
-            #protein = IO_Reader.get_protein(request["protein"])
-            pdb_file = request["protein"]
-            outputs = pipeline.run(
-                pdb_file=pdb_file
-            )
-            output = outputs[1][0]
-            output = {"task": task_name, "model": model, "pocket": output}
-        elif task_name == "protein_folding":
-            pipeline = TOOLS["protein_folding"]
-            required_inputs = ["protein"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="protein are required for protein_folding task")
-            protein = IO_Reader.get_protein(request["protein"])
-            outputs = pipeline.run(
-                protein=protein
-            )
-            pdb_string = outputs[0]
-            # Save the protein as a pdb file
-            output = {"task": task_name, "model": model, "protein": pdb_string}
-        else:
-            raise HTTPException(status_code=400, detail="Invalid task_name")
+        task_config = task_loader.get_task(task_name)
+        task_config.validate_inputs(request.model_dump())
+        pipeline = TOOLS[task_config.pipeline_key]
+        output = task_config.handler_function(request, pipeline)
         return output
     except Exception as e:
         print(e)
@@ -232,29 +505,18 @@ async def run_pipeline(request: TaskRequest):
 
 @app.post("/web_search/")
 async def web_search(request: SearchRequest):
-    request = request.model_dump()
-    task = request["task"].lower()
-    # Call the corresponding function based on the task name and get the pipeline instance
+    task_name = request.task.lower()
+
     try:
-        if task == "molecule_name_request":
-            requester = TOOLS["molecule_name_request"]
-            required_inputs = ["query"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="query are required for pubchemrequest task")
-            outputs = await requester.run(request["query"])
-            smiles = outputs[0][0].smiles
-            output = outputs[1][0]
-            return {"task": task, "molecule": output, "molecule_preview": smiles}
-        if task == "web_search":
-            requester = TOOLS["web_search"]
-            required_inputs = ["query"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="query are required for websearch task")
-            outputs = requester.run(request["query"])
-            outputs = outputs[0][0]
-            return {"task": task, "text": outputs}
+        task_config = task_loader.get_task(task_name)
+        task_config.validate_inputs(request.model_dump())
+        requester = TOOLS[task_config.pipeline_key]
+
+        if task_config.is_async:
+            output = await task_config.handler_function(request, requester)
+        else:
+            output = task_config.handler_function(request, requester)
+        return output
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
