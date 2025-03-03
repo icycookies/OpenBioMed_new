@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import argparse
 
 from open_biomed.core.pipeline import InferencePipeline, EnsemblePipeline
-from open_biomed.data import Molecule, Text, Protein, Pocket
+from open_biomed.data import Molecule, Text, Protein, Pocket, MutationToSequence
 from open_biomed.tasks.aidd_tasks.protein_molecule_docking import VinaDockTask
 
 os.environ["dataset_name"] = "BBBP"
@@ -129,7 +129,7 @@ def test_mutation_engineering():
         task="mutation_engineering",
         model="mutaplm",
         model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/mutaplm.pth",
-        device="cuda:1"
+        device="cuda:2"
     )
     protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
     prompt = Text.from_str("Strongly enhanced InsP6 kinase activity. The mutation in the ITPK protein causes a change in its catalytic activity.")
@@ -137,7 +137,11 @@ def test_mutation_engineering():
         protein=protein,
         text=prompt
     )
-    print(outputs)
+    print(outputs[0])
+    converter = MutationToSequence()
+    outputs = converter.run([protein for i in range(len(outputs[0][0]))], outputs[0][0])
+    print(outputs[0][0], outputs[1][0])
+    return pipeline
 
 def test_protein_generation():
     from open_biomed.models.functional_model_registry import PROTEIN_DECODER_REGISTRY

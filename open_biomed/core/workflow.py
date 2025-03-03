@@ -49,7 +49,7 @@ class Workflow():
                 inputs=tool.get("inputs", {})
             ))
         for edge in config.edges:
-            self.edges.append((edge["start"], edge["end"]))
+            self.edges.append((edge["start"], edge["end"], edge.get("name_mapping", None)))
 
     @classmethod
     def from_forntend_export(cls, file: str) -> None:
@@ -65,7 +65,7 @@ class Workflow():
             edge_list = [[] for i in range(len(self.nodes))]
             in_deg = [0 for i in range(len(self.nodes))]
             for edge in self.edges:
-                edge_list[edge[0]].append(edge[1])
+                edge_list[edge[0]].append((edge[1], edge[2]))
                 in_deg[edge[1]] += 1
             queue = []
             for i in range(len(self.nodes)):
@@ -95,11 +95,13 @@ class Workflow():
                     outputs = self.nodes[u].executable.run(**self.nodes[u].inputs)
                 outputs = wrap_and_select_outputs(outputs, context)
                 context.write(f"The outputs of this tool are: {get_str_from_dict(outputs)}\n\n\n")
-                for out_node in edge_list[u]:
+                for out_node, out_name_mapping in edge_list[u]:
                     in_deg[out_node] -= 1
                     if in_deg[out_node] == 0:
                         queue.append(out_node)
                     for key, value in outputs.items():
+                        if out_name_mapping is not None and key in out_name_mapping:
+                            key = out_name_mapping[key]
                         self.nodes[out_node].inputs[key] = copy.deepcopy(value)
 
 if __name__ == "__main__":

@@ -530,5 +530,5 @@ class MutaPLM(MutationExplanationModel, MutationEngineeringModel):
                     pred_aa = scores[i][position[i]].sort(descending=True).indices
                 wt_aa = self.protein_tokenizer.batch_decode(wild_type.input_ids[i][pred_pos])
                 pred_aa = self.protein_tokenizer.batch_decode(pred_aa)
-                outputs.append([f"{wt_aa[j]}{int(pred_pos[j])}{pred_aa[j]}" for j in range(50)])
+                outputs.append([f"{wt_aa[j]}{pred_pos[j]}{pred_aa[j]}" for j in range(50)])
             return outputs

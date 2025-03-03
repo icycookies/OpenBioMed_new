@@ -79,12 +79,10 @@ class PubChemRequester(DBRequester):
 
 class PubChemStructureRequester(Requester):
     def __init__(self, 
-        threshold: float=0.9,
-        max_records: int=10,
         timeout: int=30
     ) -> None:
         super().__init__()
-        self.db_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/fastsimilarity_2d/smiles/{accession}/cids/JSON?" + f"Threshold={int(threshold * 100)}&MaxRecords={max_records}"
+        self.db_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/fastsimilarity_2d/smiles/{accession}/cids/JSON?Threshold={threshould}&MaxRecords={max_records}"
         self.molecule_requester = PubChemRequester()
         self.timeout = timeout
 
@@ -96,11 +94,11 @@ class PubChemStructureRequester(Requester):
         ])
 
     @RateLimiter(max_calls=5, period=1)
-    async def run(self, molecule: Molecule=None) -> Tuple[List[Molecule], List[str]]:
+    async def run(self, molecule: Molecule=None, threshold: float=0.8, max_records=10) -> Tuple[List[Molecule], List[str]]:
         molecule._add_smiles()
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
-                async with session.get(self.db_url.format(accession=molecule.smiles)) as response:
+                async with session.get(self.db_url.format(accession=molecule.smiles, threshold=int(threshold * 100), max_records=max_records)) as response:
                     if response.status == 200:
                         content = await response.read()
                         content = json.loads(content.decode("utf-8"))

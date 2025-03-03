@@ -1366,6 +1366,9 @@ class EsmForMutationDesign(EsmPreTrainedModel):
         mutation_pos_prob[:, 0] = 0
         mutation_pos_prob[input_ids == 2] = 0
         mutation_aa_prob = F.softmax(self.lm_head(sequence_output) / 0.5, dim=-1)
+        i = torch.arange(mutation_aa_prob.shape[0]).unsqueeze(1).expand(mutation_aa_prob.shape[:-1])
+        j = torch.arange(mutation_aa_prob.shape[1]).unsqueeze(0).expand(mutation_aa_prob.shape[:-1])
+        mutation_aa_prob[i, j, input_ids] = 0
         mutation_prob = mutation_pos_prob.unsqueeze(2) * mutation_aa_prob 
 
         return mutation_prob

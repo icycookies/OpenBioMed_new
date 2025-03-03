@@ -73,7 +73,7 @@ class MutationEngineeringModel(BaseModel, ABC):
         prompt: Featurized[Text],
         position: Optional[torch.LongTensor]=None,
         **kwargs,
-    ) -> List[List[str]]:
+    ) -> List[List[Tuple[Protein, str]]]:
         raise NotImplementedError
 
     @abstractmethod

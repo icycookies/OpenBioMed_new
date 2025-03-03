@@ -8,6 +8,7 @@ import pickle
 from rdkit import Chem
 import re
 
+from open_biomed.core.tool import Tool
 from open_biomed.data.text import Text
 from open_biomed.utils.exception import ProteinConstructError
 
@@ -87,6 +88,7 @@ class Protein(dict):
         # initialize a protein with a fasta sequence
         protein = cls()
         protein.sequence = fasta
+        protein._add_name()
         return protein
 
     @classmethod
@@ -244,3 +246,23 @@ def protein_sequence_similarity(protein1: Protein, protein2: Protein) -> Tuple[f
     similarity = alignment.score / (len(protein1) + len(protein2) - alignment.score)
     output_seq = fasta.AlignmentWriter(None).format_alignment(alignment)
     return similarity, output_seq.split("\n")[1], output_seq.split("\n")[3]
+
+class MutationToSequence(Tool):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def print_usage(self) -> str:
+        return 'Apply a single-site mutation to the wild-type sequence' + \
+               'Inputs: {"protein": wild-type protein, "mutation": a mutation}' + \
+               'Outputs: a mutated protein'
+
+    def run(self, protein: List[Protein], mutation: List[str]) -> Tuple[List[Protein], List[str]]:
+        mutants, files = [], []
+        for i in range(len(protein)):
+            seq = protein[i].sequence
+            pos = int(mutation[i][1:-1])
+            mutant = Protein.from_fasta(seq[:pos - 1] + mutation[i][-1] + seq[pos:])
+            mutant.name = protein[i].name + "_" + mutation[i]
+            mutants.append(mutant)
+            files.append(mutant.save_binary())
+        return mutants, files
