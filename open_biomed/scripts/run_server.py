@@ -2,12 +2,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import torch.nn.functional as F
 import uvicorn
+import random
+import copy
 import asyncio
 import subprocess
 from typing import Optional, List, Dict, Callable, Any
 
 # import function
-from open_biomed.data import Molecule, Text, Protein, Pocket
+from open_biomed.data import Molecule, Text, Protein, Pocket, MutationToSequence
 from open_biomed.core.oss_warpper import oss_warpper
 from open_biomed.core.tool_registry import TOOLS
 
@@ -223,8 +225,8 @@ def handle_protein_folding(request: TaskRequest, pipeline):
     required_inputs = ["protein"]
     protein = IO_Reader.get_protein(request.protein)
     outputs = pipeline.run(protein=protein)
-    pdb_string = outputs[0]
-    return {"task": request.task, "model": request.model, "protein": pdb_string}
+    protein = outputs[1][0]
+    return {"task": request.task, "model": request.model, "protein": protein}
 
 
 # Handlers for web_search
@@ -273,8 +275,13 @@ def handle_mutation_engineering(request: TaskRequest, pipeline):
     protein = IO_Reader.get_protein(request.protein)
     text = IO_Reader.get_text(request.text)
     outputs = pipeline.run(protein=protein, text=text)
-    output = outputs[0][0]
-    return {"task": request.task, "model":request.model, "text": output}
+    mutation_list = copy.deepcopy(outputs[0][0][:50])
+    mutation = random.choice(outputs[0][0])
+    converter = MutationToSequence()
+    outputs = converter.run([protein], [mutation])
+    protein =  outputs[1][0]
+    protein_preview = outputs[0][0].sequence
+    return {"task": request.task, "model":request.model, "mutation": mutation_list, "protein": protein, "protein_preview": protein_preview}
 
 
 def handle_pocket_molecule_docking(request: TaskRequest, pipeline):
