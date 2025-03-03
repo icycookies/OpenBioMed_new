@@ -97,14 +97,13 @@ class Protein(dict):
         pass
 
     @classmethod
-    def from_pdb_file(cls, pdb_file: str, removeHs: bool=True) -> Self:
-        # initialize a protein with a pdb file
+    def from_pdb(cls, pdb_lines: List[str], removeHs=True) -> Self:
         # TODO: handle multi-chain inputs 
         protein = cls()
-        protein.name = pdb_file.split("/")[-1].rstrip(".pdb")
+        protein._add_name()
         protein.residues, protein.all_atom = [], []
         residues_tmp = {}
-        for data in enumerate_pdb_lines(open(pdb_file, "r").readlines()):
+        for data in enumerate_pdb_lines(pdb_lines):
             if data['type'] == 'HEADER':
                 protein.description = data['value'].lower()
                 continue
@@ -152,6 +151,13 @@ class Protein(dict):
                     protein.residues[-1].__setattr__('pos_%s' % atom["atom_name"], atom["pos"])
             protein.residues[-1].center_of_mass = sum_pos / sum_mass
         
+        return protein
+
+    @classmethod
+    def from_pdb_file(cls, pdb_file: str, removeHs: bool=True) -> Self:
+        # initialize a protein with a pdb file
+        protein = Protein.from_pdb(open(pdb_file, "r").readlines())
+        protein.name = pdb_file.split("/")[-1].rstrip(".pdb")
         return protein
 
     @classmethod

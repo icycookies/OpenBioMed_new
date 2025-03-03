@@ -349,7 +349,7 @@ class InferencePipeline(Pipeline, Tool):
                 file = f"./tmp/mol_{timestamp}_{i}.pkl"
                 output.save_binary(file)
             elif isinstance(output, Protein):
-                file = f"./tmp/mol_{timestamp}_{i}.pkl"
+                file = f"./tmp/protein_{timestamp}_{i}.pkl"
                 output.save_binary(file)
             elif isinstance(output, Pocket):
                 file = f"./tmp/pocket_{timestamp}_{i}.pkl"

@@ -196,7 +196,7 @@ def test_protein_folding():
     outputs = pipeline.run(
         protein=protein,
     )
-    print(outputs)
+    print(outputs[0][0], outputs[1][0])
     return pipeline
 
 INFERENCE_UNIT_TESTS = {

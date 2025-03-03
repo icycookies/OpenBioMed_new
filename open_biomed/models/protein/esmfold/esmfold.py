@@ -6,12 +6,10 @@ import torch
 import torch.nn as nn
 
 from transformers import EsmTokenizer, DataCollatorWithPadding
-# from transformers import EsmForProteinFolding
 from open_biomed.models.protein.esmfold.modeling_esmfold import EsmForProteinFolding
-from open_biomed.data import Protein, Text
-from peft import get_peft_model, LoraConfig, TaskType
+from open_biomed.data import Protein
 from open_biomed.models.task_models.protein_folding import ProteinFoldingModel
-from open_biomed.utils.collator import Collator, ClassLabelCollator, EnsembleCollator, ListCollator
+from open_biomed.utils.collator import Collator, EnsembleCollator, ListCollator
 from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import Featurizer, Featurized
 
@@ -105,6 +103,7 @@ class EsmFold(ProteinFoldingModel):
         
         # TODO: convert output to open_biomed.data.Protein
         output = self.protein_model.output_to_pdb(output)
+        output = [Protein.from_pdb(item.split("\n")) for item in output]
         
         return output
     

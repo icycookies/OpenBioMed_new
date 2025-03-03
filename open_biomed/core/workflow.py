@@ -1,5 +1,6 @@
 from typing import Any, Dict, TextIO
 
+import argparse
 import asyncio
 import copy
 import json
@@ -9,7 +10,6 @@ import subprocess
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# from open_biomed.core.pipeline import Pipeline
 from open_biomed.core.tool_registry import TOOLS
 from open_biomed.core.visualize import Visualizer
 from open_biomed.utils.config import Config
@@ -102,10 +102,16 @@ class Workflow():
                     for key, value in outputs.items():
                         if out_name_mapping is not None and key in out_name_mapping:
                             key = out_name_mapping[key]
+                        context.write(f'Tool No.{u + 1} passes its "{key}" output to Tool No.{out_node + 1}\n')
                         self.nodes[out_node].inputs[key] = copy.deepcopy(value)
 
 if __name__ == "__main__":
-    config = Config(config_file="./configs/workflow/stable_drug_design.yaml")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--workflow", type=str, default="stable_drug_design")
+    parser.add_argument("--num_repeats", type=int, default=1)
+    args = parser.parse_args()
+
+    config = Config(config_file=f"./configs/workflow/{args.workflow}.yaml")
     workflow = Workflow(config)
-    asyncio.run(workflow.run(num_repeats=1, context=open("./logs/workflow_outputs.txt", "w")))
+    asyncio.run(workflow.run(num_repeats=args.num_repeats, context=open("./logs/workflow_outputs.txt", "w")))
     # workflow.run(num_repeats=1)

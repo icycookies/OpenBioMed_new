@@ -65,9 +65,9 @@ edges:
     end: 4
   - start: 4
     end: 5
-  - start: 3
-    end: 6
   - start: 1
+    end: 6
+  - start: 4
     end: 7
   - start: 1
     end: 8
