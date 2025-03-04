@@ -9,7 +9,7 @@ from transformers import EsmTokenizer, DataCollatorWithPadding
 from open_biomed.models.protein.esmfold.modeling_esmfold import EsmForProteinFolding
 from open_biomed.data import Protein
 from open_biomed.models.task_models.protein_folding import ProteinFoldingModel
-from open_biomed.utils.collator import Collator, EnsembleCollator, ListCollator
+from open_biomed.utils.collator import Collator, EnsembleCollator
 from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import Featurizer, Featurized
 
@@ -53,14 +53,6 @@ class EsmFold(ProteinFoldingModel):
 
         if model_cfg.chunk_size:
             self.protein_model.trunk.set_chunk_size(model_cfg.chunk_size)
-
-        self.featurizers = ProteinEsmFeaturizer(
-            protein_tokenizer=self.protein_tokenizer,
-            max_length_protein=model_cfg.max_length,
-            add_special_tokens=False,
-        )
-
-        self.collators = ListCollator()
 
         for parent in reversed(type(self).__mro__[1:-1]):
             if hasattr(parent, '_add_task'):
