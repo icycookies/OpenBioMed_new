@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Self
 
 import copy
@@ -11,8 +11,8 @@ RDLogger.DisableLog("rdApp.*")
 from rdkit.Chem import AllChem, MACCSkeys
 from rdkit.Chem.AllChem import RWMol
 import re
-from torch_geometric.data import Data as Graph
 
+from open_biomed.core.tool import Tool
 from open_biomed.data.text import Text
 from open_biomed.utils.exception import MoleculeConstructError
 
@@ -124,9 +124,18 @@ class Molecule:
             conf = mol_array_to_conformer(self.conformer)
             self.rdmol.AddConformer(conf)
 
-    def _add_conformer(self, method: str='mmff', num_conformers: int=1, base: str='rdmol') -> None:
+    def _add_conformer(self, mode: str='2D', base: str='rdmol') -> None:
         # Add class property: conformer, based on smiles / selfies / rdmol, default: rdmol
-        pass
+        if self.conformer is None:
+            self._add_rdmol()
+            if mode == '2D':
+                AllChem.Compute2DCoords(self.rdmol)
+            elif mode == '3D':
+                self.rdmol = Chem.AddHs(self.rdmol)
+                AllChem.EmbedMolecule(self.rdmol)
+                AllChem.MMFFOptimizeMolecule(self.rdmol)
+            conformer = self.rdmol.GetConformer()
+            self.conformer = np.array(conformer.GetPositions())
     
     def _add_description(self, text_database: Dict[Any, Text], identifier_key: str='SMILES', base: str='smiles') -> None:
         # Add class property: description, based on smiles / selfies / rdmol, default: smiles
@@ -144,6 +153,7 @@ class Molecule:
         if not os.path.exists(file) or overwrite:
             writer = Chem.SDWriter(file)
             self._add_rdmol()
+            self._add_conformer()
             writer.write(self.rdmol)
         return file
 

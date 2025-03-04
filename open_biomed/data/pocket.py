@@ -60,7 +60,7 @@ class Pocket:
                 atom = protein.all_atom[atom_i]
                 pocket.atoms.append(atom)
                 pocket.conformer.append(atom['pos'])
-            pocket.orig_indices.append(protein.residues[i].res_id)
+            pocket.orig_indices.append(i)
         pocket.conformer = np.array(pocket.conformer)
         pocket.orig_protein = protein
         return pocket

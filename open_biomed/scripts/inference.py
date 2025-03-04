@@ -5,7 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import argparse
 
 from open_biomed.core.pipeline import InferencePipeline, EnsemblePipeline
-from open_biomed.data import Molecule, Text, Protein, Pocket, MutationToSequence
+from open_biomed.core.tool_misc import MutationToSequence
+from open_biomed.data import Molecule, Text, Protein, Pocket
 from open_biomed.tasks.aidd_tasks.protein_molecule_docking import VinaDockTask
 
 os.environ["dataset_name"] = "BBBP"
@@ -190,7 +191,7 @@ def test_protein_folding():
         task="protein_folding",
         model="esmfold",
         model_ckpt="/AIRvePFS/dair/users/ailin/.cache/huggingface/hub/esmfold_v1/pytorch_model.bin",
-        device="cuda:7"
+        device="cuda:2"
     )
     protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
     outputs = pipeline.run(

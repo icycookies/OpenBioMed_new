@@ -253,25 +253,3 @@ def protein_sequence_similarity(protein1: Protein, protein2: Protein) -> Tuple[f
     output_seq = fasta.AlignmentWriter(None).format_alignment(alignment)
     return similarity, output_seq.split("\n")[1], output_seq.split("\n")[3]
 
-class MutationToSequence(Tool):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def print_usage(self) -> str:
-        return 'Apply a single-site mutation to the wild-type sequence\n' + \
-               'Inputs: {"protein": wild-type protein, "mutation": a mutation}\n' + \
-               'Outputs: a mutated protein\n'
-
-    def run(self, protein: Union[List[Protein], Protein], mutation: Union[List[str], str]) -> Tuple[List[Protein], List[str]]:
-        if not isinstance(protein, list):
-            protein = [protein]
-            mutation = [mutation]
-        mutants, files = [], []
-        for i in range(len(protein)):
-            seq = protein[i].sequence
-            pos = int(mutation[i][1:-1])
-            mutant = Protein.from_fasta(seq[:pos - 1] + mutation[i][-1] + seq[pos:])
-            mutant.name = protein[i].name + "_" + mutation[i]
-            mutants.append(mutant)
-            files.append(mutant.save_binary())
-        return mutants, files

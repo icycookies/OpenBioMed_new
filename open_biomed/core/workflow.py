@@ -61,49 +61,52 @@ class Workflow():
         for i, node in enumerate(self.nodes):
             context.write(f"Tool No.{i + 1}: {node.executable.print_usage()}\n\n\n")
         for repeat in range(num_repeats):
-            context.write(f"Repeating workflow execution No.{repeat + 1}:\n")
-            edge_list = [[] for i in range(len(self.nodes))]
-            in_deg = [0 for i in range(len(self.nodes))]
-            for edge in self.edges:
-                edge_list[edge[0]].append((edge[1], edge[2]))
-                in_deg[edge[1]] += 1
-            queue = []
-            for i in range(len(self.nodes)):
-                self.nodes[i].inputs = copy.deepcopy(self.nodes[i].orig_inputs)
-                if in_deg[i] == 0:
-                    queue.append(i)
-            while len(queue) > 0:
-                u = queue.pop(0)
-                context.write(f"Next we execute Tool No.{u + 1}.\n The inputs of this tool are: {get_str_from_dict(self.nodes[u].inputs)}\n")
-                if getattr(self.nodes[u].executable, "requires_async", False):
-                    outputs = await asyncio.create_task(self.nodes[u].executable.run(**self.nodes[u].inputs))
-                elif isinstance(self.nodes[u].executable, Visualizer):
-                    # Execute visualization in a subprocess to avoid internal errors of PyMol when an InferencePipeline object is created
-                    vis_process = [
-                        "python3", "./open_biomed/core/visualize.py", 
-                        "--task", self.nodes[u].name,
-                        "--save_output_filename", "./tmp/visualization_file.txt",
-                    ]
-                    for key, value in self.nodes[u].inputs.items():
-                        if key in ["molecule", "protein", "pocket"]:
-                            vis_process.append(f"--{key}")
-                            vis_process.append(value.save_binary())
-                    subprocess.Popen(vis_process).communicate()
-                    outputs = open("./tmp/visualization_file.txt", "r").read()
-                    outputs = [outputs], [outputs]
-                else:
-                    outputs = self.nodes[u].executable.run(**self.nodes[u].inputs)
-                outputs = wrap_and_select_outputs(outputs, context)
-                context.write(f"The outputs of this tool are: {get_str_from_dict(outputs)}\n\n\n")
-                for out_node, out_name_mapping in edge_list[u]:
-                    in_deg[out_node] -= 1
-                    if in_deg[out_node] == 0:
-                        queue.append(out_node)
-                    for key, value in outputs.items():
-                        if out_name_mapping is not None and key in out_name_mapping:
-                            key = out_name_mapping[key]
-                        context.write(f'Tool No.{u + 1} passes its "{key}" output to Tool No.{out_node + 1}\n')
-                        self.nodes[out_node].inputs[key] = copy.deepcopy(value)
+            try:
+                context.write(f"Repeating workflow execution No.{repeat + 1}:\n")
+                edge_list = [[] for i in range(len(self.nodes))]
+                in_deg = [0 for i in range(len(self.nodes))]
+                for edge in self.edges:
+                    edge_list[edge[0]].append((edge[1], edge[2]))
+                    in_deg[edge[1]] += 1
+                queue = []
+                for i in range(len(self.nodes)):
+                    self.nodes[i].inputs = copy.deepcopy(self.nodes[i].orig_inputs)
+                    if in_deg[i] == 0:
+                        queue.append(i)
+                while len(queue) > 0:
+                    u = queue.pop(0)
+                    context.write(f"Next we execute Tool No.{u + 1}.\n The inputs of this tool are: {get_str_from_dict(self.nodes[u].inputs)}\n")
+                    if getattr(self.nodes[u].executable, "requires_async", False):
+                        outputs = await asyncio.create_task(self.nodes[u].executable.run(**self.nodes[u].inputs))
+                    elif isinstance(self.nodes[u].executable, Visualizer):
+                        # Execute visualization in a subprocess to avoid internal errors of PyMol when an InferencePipeline object is created
+                        vis_process = [
+                            "python3", "./open_biomed/core/visualize.py", 
+                            "--task", self.nodes[u].name,
+                            "--save_output_filename", "./tmp/visualization_file.txt",
+                        ]
+                        for key, value in self.nodes[u].inputs.items():
+                            if key in ["molecule", "protein", "pocket"]:
+                                vis_process.append(f"--{key}")
+                                vis_process.append(value.save_binary())
+                        subprocess.Popen(vis_process).communicate()
+                        outputs = open("./tmp/visualization_file.txt", "r").read()
+                        outputs = [outputs], [outputs]
+                    else:
+                        outputs = self.nodes[u].executable.run(**self.nodes[u].inputs)
+                    outputs = wrap_and_select_outputs(outputs, context)
+                    context.write(f"The outputs of this tool are: {get_str_from_dict(outputs)}\n\n\n")
+                    for out_node, out_name_mapping in edge_list[u]:
+                        in_deg[out_node] -= 1
+                        if in_deg[out_node] == 0:
+                            queue.append(out_node)
+                        for key, value in outputs.items():
+                            if out_name_mapping is not None and key in out_name_mapping:
+                                key = out_name_mapping[key]
+                            context.write(f'Tool No.{u + 1} passes its "{key}" output to Tool No.{out_node + 1}\n')
+                            self.nodes[out_node].inputs[key] = copy.deepcopy(value)
+            except:
+                context.write("The workflow execution failed")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

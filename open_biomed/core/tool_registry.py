@@ -1,9 +1,10 @@
+from open_biomed.core.tool_misc import *
 from open_biomed.core.web_request import *
 from open_biomed.core.visualize import *
 from open_biomed.core.third_party_server import *
 from open_biomed.core.llm_request import KeyInfoExtractor
-from open_biomed.data.protein import MutationToSequence
 from open_biomed.scripts.inference import *
+
 
 # TODO: Add pocket prediction as a tool
 class LazyDictForTool(dict):
@@ -52,6 +53,12 @@ class LazyDictForTool(dict):
             self[key] = WebSearchRequester()
         elif key == "key_info_extract":
             self[key] = KeyInfoExtractor()
+        elif key == "import_pocket":
+            self[key] = ImportPocket()
+        elif key == "export_molecule":
+            self[key] = ExportMolecule()
+        elif key == "export_protein":
+            self[key] = ExportProtein()
         else:
             raise NotImplementedError(f"{key} is currently not supported!")
         return self[key]
