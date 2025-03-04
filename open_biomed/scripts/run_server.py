@@ -9,7 +9,8 @@ import subprocess
 from typing import Optional, List, Dict, Callable, Any
 
 # import function
-from open_biomed.data import Molecule, Text, Protein, Pocket, MutationToSequence
+from open_biomed.data import Molecule, Text, Protein, Pocket
+from open_biomed.core.tool_misc import MutationToSequence
 from open_biomed.core.oss_warpper import oss_warpper
 from open_biomed.core.tool_registry import TOOLS
 
