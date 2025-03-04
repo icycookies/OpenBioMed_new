@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from open_biomed.core.tool_registry import TOOLS
 from open_biomed.core.visualize import Visualizer
 from open_biomed.utils.config import Config
+from open_biomed.data import Molecule, Protein, Text
 from open_biomed.utils.misc import wrap_and_select_outputs, create_tool_input
 
 def parse_frontend(input: str) -> str:
@@ -56,7 +57,7 @@ class Workflow():
         yml_file = parse_frontend(file)
         return cls(config=Config(config_file=yml_file))
 
-    async def run(self, num_repeats=10, context: TextIO=sys.stdout) -> Any:
+    async def run(self, num_repeats=10, context: TextIO=sys.stdout, tool_outputs: TextIO=sys.stdout) -> Any:
         context.write("Now we have a workflow with the following tools: \n")
         for i, node in enumerate(self.nodes):
             context.write(f"Tool No.{i + 1}: {node.executable.print_usage()}\n\n\n")
@@ -94,6 +95,25 @@ class Workflow():
                         outputs = [outputs], [outputs]
                     else:
                         outputs = self.nodes[u].executable.run(**self.nodes[u].inputs)
+
+                    tool_name = self.nodes[u].executable.print_usage().split(".\n")[0].lower().split()
+                    dir_name, file_name = os.path.dirname(outputs[1][0]), os.path.basename(outputs[1][0])
+                    file_name = "_".join(tool_name) + "_" + file_name
+                    if isinstance(outputs[0][0], Molecule) and hasattr(outputs[0][0], "conformer"):
+                        file_name = file_name.replace("pkl", "sdf")
+                        file_path = os.path.join(dir_name, file_name)
+                        outputs[0][0].save_sdf(file_path)
+                        tool_outputs.write(file_path+"\n")
+                    elif isinstance(outputs[0][0], Protein) and hasattr(outputs[0][0], "conformer"):
+                        file_name = file_name.replace("pkl", "pdb")
+                        file_path = os.path.join(dir_name, file_name)
+                        outputs[0][0].save_pdb(file_path)
+                        tool_outputs.write(file_path+"\n")
+                    elif outputs[1][0][-4:] in [".png"]:
+                        file_path = os.path.join(dir_name, file_name)
+                        os.rename(outputs[1][0], file_path)
+                        tool_outputs.write(file_path+"\n")
+                    
                     outputs = wrap_and_select_outputs(outputs, context)
                     context.write(f"The outputs of this tool are: {get_str_from_dict(outputs)}\n\n\n")
                     for out_node, out_name_mapping in edge_list[u]:
@@ -116,5 +136,5 @@ if __name__ == "__main__":
 
     config = Config(config_file=f"./configs/workflow/{args.workflow}.yaml")
     workflow = Workflow(config)
-    asyncio.run(workflow.run(num_repeats=args.num_repeats, context=open("./logs/workflow_outputs.txt", "w")))
+    asyncio.run(workflow.run(num_repeats=args.num_repeats, context=open("./logs/workflow_outputs.txt", "w"), tool_outputs=open("./logs/workflow_tool_outputs.txt", "w")))
     # workflow.run(num_repeats=1)
