@@ -73,7 +73,7 @@ def merge_nodes(nodes):
 
 
 
-def get_path(file_path):
+def get_path(file_path, output_path):
     
     with open(file_path, 'r') as file:
         node_edge_data = json.load(file)
@@ -147,9 +147,12 @@ def get_path(file_path):
 
     for path in merge_nodes_list_filter:
         yaml_dict["edges"].append({"start": node_list.index(path[0]), "end": node_list.index(path[1])})
+    
+    folder_path = os.path.dirname(output_path)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
-
-    with open("output.yaml", "w", encoding="utf-8") as file:
+    with open(output_path, "w", encoding="utf-8") as file:
         yaml.dump(yaml_dict, file, allow_unicode=True, sort_keys=False)
 
     print("YAML 文件已保存为 output.yaml")
@@ -157,5 +160,5 @@ def get_path(file_path):
 
 if __name__ == "__main__":
     file_path = "/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/configs/workflow/Stable_molecule_design.json"
-    get_path(file_path)
+    get_path(file_path, output_path="tmp/workflow/workflow.yaml")
     
