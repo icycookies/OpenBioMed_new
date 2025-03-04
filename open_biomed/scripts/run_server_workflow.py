@@ -8,7 +8,7 @@ import uvicorn
 import asyncio
 
 # import function
-from open_biomed.core.llm_request import ReportGeneratorSBDD
+from open_biomed.core.llm_request import ReportGeneratorSBDD, ReportGeneratorGeneral
 
 app = FastAPI()
 
@@ -26,6 +26,18 @@ async def run_workflow(request: ReportRequest):
     try:
         if task == "sbdd":
             requester = ReportGeneratorSBDD()
+            required_inputs = ["config_file", "num_repeats"]
+            if not all(key in request for key in required_inputs):
+                raise HTTPException(
+                    status_code=400, detail="workflow config file is required for report generation task")
+
+            resp = await requester.run(config_file=request["config_file"], num_repeats=request["num_repeats"])
+
+            report_content = resp['final_resp']
+            report_thinking = resp['reasoning']
+            return {"type": task+"_report", "content": report_content, "thinking": report_thinking}
+        else:
+            requester = ReportGeneratorGeneral()
             required_inputs = ["config_file", "num_repeats"]
             if not all(key in request for key in required_inputs):
                 raise HTTPException(
