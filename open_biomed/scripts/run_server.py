@@ -247,8 +247,11 @@ async def handle_molecule_structure_request(request: SearchRequest, requester):
     molecule = IO_Reader.get_molecule(request.molecule)
     threshold = request.threshold
     outputs = await requester.run(molecule, threshold=float(threshold), max_records=1)
-    outputs = outputs[1][0]
-    return {"task": request.task, "text": outputs}
+    # Pick a random molecule
+    index = random.randint(0, len(outputs[1])-1)
+    molecule = outputs[1][index]
+    molecule_preview = outputs[0][index].smiles
+    return {"task": request.task, "molecule": molecule, "molecule_preview": molecule_preview}
 
 
 async def handle_protein_uniprot_request(request: SearchRequest, requester):
@@ -260,7 +263,9 @@ async def handle_protein_uniprot_request(request: SearchRequest, requester):
 async def handle_protein_pdb_request(request: SearchRequest, requester):
     outputs = await requester.run(request.query)
     outputs = outputs[1][0]
-    return {"task": request.task, "text": outputs}
+    protein = IO_Reader.get_protein(outputs)
+    protein_preview = str(protein)
+    return {"task": request.task, "protein": outputs, "protein_preview": protein_preview}
 
 
 def handle_mutation_explanation(request: TaskRequest, pipeline):
@@ -360,7 +365,7 @@ def handle_import_pocket(request: TaskRequest, pipeline):
     protein = IO_Reader.get_protein(request.protein)
     indices = [int(i) - 1 for i in request.indices.split(";")]
     pockets, files = pipeline.run([protein], [indices])
-    return {"task": request.task, "procket": str(pockets[0]), "pocket_preview": files[0]}
+    return {"task": request.task, "pocket": files[0], "pocket_preview": str(pockets[0])}
 
 
 
