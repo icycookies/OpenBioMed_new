@@ -95,10 +95,13 @@ if __name__ == "__main__":
     tool = ExportProtein()
     protein = Protein.from_fasta("MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQRVEDAFYTLVREIRQYRLKKISKEEKTPGCVKIKKCIIM")
     tool.run(protein)
-    """
     tool = ImportPocket()
     protein = Protein.from_pdb_file("./tmp/sbdd/4xli_B.pdb")
     molecule = Molecule.from_sdf_file("./tmp/sbdd/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, molecule)
     print(pocket)
     print(tool.run(protein, pocket.orig_indices)[0])
+    """
+    tool = ExportMolecule()
+    molecule = Molecule.from_smiles("C1=CC=C(C=C1)C=O")
+    print(tool.run(molecule)[0])

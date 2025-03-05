@@ -15,14 +15,14 @@ from open_biomed.utils.config import Config, merge_config
 from open_biomed.utils.misc import create_tool_input
 
 
-def convert_png2gif(png_dir, gif_file, duration=0.5):
+def convert_png2gif(png_dir, gif_file, fps=0.5):
     """
     generate gif from png
     :param png_file
     :param gif_file
     """
     frames = [imageio.v2.imread(os.path.join(png_dir, f)) for f in sorted(os.listdir(png_dir)) if f.endswith(".png")]
-    imageio.mimsave(gif_file, frames, duration=duration)
+    imageio.mimsave(gif_file, frames, fps=fps)
 
 def visualize_complex_3D(
     file: str, 

@@ -16,7 +16,7 @@ class ProteinFolding(BaseTask):
         return "\n".join([
             'Protein folding prediction.',
             'Inputs: {"protein": a protein sequence}',
-            "Outputs: PDB string representing the predicted 3D structure of the protein."
+            "Outputs: A protein object with 3D structure available."
         ])
 
     

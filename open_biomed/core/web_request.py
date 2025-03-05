@@ -13,6 +13,7 @@ import logging
 import random
 from ratelimiter import RateLimiter
 import tarfile
+from urllib.parse import quote
 
 from open_biomed.data import Molecule, Protein
 from open_biomed.core.tool import Tool
@@ -98,7 +99,8 @@ class PubChemStructureRequester(Requester):
         molecule._add_smiles()
         try:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
-                async with session.get(self.db_url.format(accession=molecule.smiles, threshold=int(threshold * 100), max_records=max_records)) as response:
+                url = self.db_url.format(accession=molecule.smiles, threshold=int(threshold * 100), max_records=max_records)
+                async with session.get(url.replace("#", "%23")) as response:
                     if response.status == 200:
                         content = await response.read()
                         content = json.loads(content.decode("utf-8"))
@@ -371,7 +373,7 @@ class MSARequester(MMSeqsRequester):
             folder_name = tar_file.rstrip(".tar.gz")
             os.makedirs(folder_name, exist_ok=True)
             tar_gz.extractall(folder_name)
-        ret = f"./tmp/{folder_name}/uniref.a3m"
+        ret = f"{folder_name}/uniref.a3m"
         return [ret], [ret]
 
 class FoldSeekRequester(MMSeqsRequester):
@@ -422,7 +424,7 @@ class FoldSeekRequester(MMSeqsRequester):
             folder_name = tar_file.rstrip(".tar.gz")
             os.makedirs(folder_name, exist_ok=True)
             tar_gz.extractall(folder_name)
-        ret = f"./tmp/{folder_name}"
+        ret = f"{folder_name}"
         return [ret], [ret]
 
 if __name__ == "__main__":
@@ -463,4 +465,4 @@ if __name__ == "__main__":
     """
 
     requester = PubChemStructureRequester()
-    asyncio.run(requester.run(Molecule.from_smiles("C=C(O)C1CC(C)C23CC4OC(C)COC4C(C)C4CC(O2)C(O)C4C32CC12")))
+    asyncio.run(requester.run(Molecule.from_smiles("CN1CCC[C@H]1COC2=NC3=C(CCN(C3)C4=CC=CC5=C4C(=CC=C5)Cl)C(=N2)N6CCN([C@H](C6)CC#N)C(=O)C(=C)F"), threshold=0.8))

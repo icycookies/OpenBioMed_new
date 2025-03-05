@@ -180,7 +180,7 @@ def test_molecule_property_prediction():
     input_smiles = "Nc1[nH]c(C(=O)c2ccccc2)c(-c2ccccn2)c1C(=O)c1c[nH]c2ccc(Br)cc12"
     outputs = pipeline.run(
         molecule=Molecule.from_smiles(input_smiles),
-        task="SIDER"
+        task="BBBP",
     )
     print(outputs)
     return pipeline
