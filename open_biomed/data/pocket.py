@@ -88,7 +88,7 @@ class Pocket:
 
     def __str__(self) -> str:
         if self.orig_protein is not None:
-            return "A pocket from protein " + str(self.orig_protein) + " at positions " + ",".join([str(idx) for idx in self.orig_indices])
+            return "A pocket from protein " + str(self.orig_protein) + " at positions " + ",".join([str(idx+1) for idx in self.orig_indices])
         else:
             return "A pocket"
 

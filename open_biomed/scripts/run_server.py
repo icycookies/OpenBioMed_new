@@ -9,7 +9,8 @@ import subprocess
 from typing import Optional, List, Dict, Callable, Any
 
 # import function
-from open_biomed.data import Molecule, Text, Protein, Pocket, MutationToSequence
+from open_biomed.data import Molecule, Text, Protein, Pocket
+from open_biomed.core.tool_misc import MutationToSequence
 from open_biomed.core.oss_warpper import oss_warpper
 from open_biomed.core.tool_registry import TOOLS
 
@@ -97,6 +98,7 @@ class TaskRequest(BaseModel):
     dataset: Optional[str] = None
     query: Optional[str] = None
     mutation: Optional[str] = None
+    indices: Optional[str] = None
 
 
 class SearchRequest(BaseModel):
@@ -335,6 +337,32 @@ def handle_visualize_protein_pocket(request: TaskRequest, pipeline):
     return {"task": request.task, "image": outputs}
 
 
+def handle_export_molecule(request: TaskRequest, pipeline):
+    required_inputs = ["molecule"]
+    molecule = IO_Reader.get_molecule(request.molecule)
+    files = pipeline.run([molecule])
+    oss_file_path = oss_warpper.generate_file_name(files[0])
+    outputs = oss_warpper.upload(oss_file_path, files[0])
+    return {"task": request.task, "file": outputs}
+
+
+def handle_export_protein(request: TaskRequest, pipeline):
+    required_inputs = ["protein"]
+    protein = IO_Reader.get_protein(request.protein)
+    files = pipeline.run([protein])
+    oss_file_path = oss_warpper.generate_file_name(files[0])
+    outputs = oss_warpper.upload(oss_file_path, files[0])
+    return {"task": request.task, "file": outputs}
+
+
+def handle_import_pocket(request: TaskRequest, pipeline):
+    required_inputs = ["protein", "indices"]
+    protein = IO_Reader.get_protein(request.protein)
+    indices = [int(i) - 1 for i in request.indices.split(";")]
+    pockets, files = pipeline.run([protein], [indices])
+    return {"task": request.task, "procket": str(pockets[0]), "pocket_preview": files[0]}
+
+
 
 
 TASK_CONFIGS = [
@@ -477,7 +505,30 @@ TASK_CONFIGS = [
         "pipeline_key": "protein_molecule_docking_score",
         "handler_function": handle_protein_molecule_docking_score,
         "is_async": False
+    },
+    {
+        "task_name": "export_molecule",
+        "required_inputs": ["molecule"],
+        "pipeline_key": "export_molecule",
+        "handler_function": handle_export_molecule,
+        "is_async": False
+    },
+    {
+        "task_name": "export_protein",
+        "required_inputs": ["protein"],
+        "pipeline_key": "export_protein",
+        "handler_function": handle_export_protein,
+        "is_async": False
+    },
+    {
+        "task_name": "import_pocket",
+        "required_inputs": ["pocket", "indices"],
+        "pipeline_key": "import_pocket",
+        "handler_function": handle_import_pocket,
+        "is_async": False
     }
+    
+
 ]
 
 
