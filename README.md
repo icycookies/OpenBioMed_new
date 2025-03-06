@@ -15,11 +15,10 @@
 
 > PharmolixFM is an all-atom molecular foundation model jointly released by PharMolix Inc. and Institute of AI Industry Research (AIR), Tsinghua University. It unifies molecules, antibodies, and proteins by jointly modeling them at atom-level with cutting-edge non-autoregressive multi-modal generative models. PharmolixFM is capable of solving mutiple downstream tasks such as docking, structure-based drug design, peptide design, and molecular conformation generation. PharmolixFM achieves competitive performance with AlphaFold3 (83.9 vs 90.2, RMSD < 2Å) on protein-molecule docking (given pocket).
 
-> BioMedGPT-R1 
-
 
 - [2025/02/20] 🔥 BioMedGPT-R1 (🤗[Huggingface Model](https://huggingface.co/PharMolix/BioMedGPT-R1)) has been released. 
 
+> BioMedGPT-R1-17B is a multimodal biomedical reasoning model jointly released by PharMolix and Institute of AI Industry Research (AIR) . It updates the language model in last version with DeepSeek-R1-Distill-Qwen-14B and adopts two-stage training for cross-modal alignment and multimodal reasoning SFT, performing on par with commercial model on biomedical QA benchmark.
 
 - [2024/05/16] Released implementation of **LangCell** (📃[Paper](https://arxiv.org/abs/2405.06708), 💻[Code](https://github.com/PharMolix/LangCell), 🤖[Model](https://drive.google.com/drive/folders/1cuhVG9v0YoAnjW-t_WMpQQguajumCBTp?usp=sharing), 📎[Citation](#to-cite-langcell)).
 
