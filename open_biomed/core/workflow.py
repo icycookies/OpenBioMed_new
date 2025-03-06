@@ -6,6 +6,7 @@ import copy
 import json
 import numpy as np
 import os
+import uuid
 import yaml
 import re
 import subprocess
@@ -18,7 +19,7 @@ from open_biomed.utils.config import Config
 from open_biomed.data import Molecule, Protein, Text
 from open_biomed.utils.misc import wrap_and_select_outputs, create_tool_input
 
-def parse_frontend(filepath: str, output_floder: str = "tmp/workflow") -> str:
+def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str:
 
     def get_createdata_node(node):
         node_dict = {}
@@ -79,8 +80,11 @@ def parse_frontend(filepath: str, output_floder: str = "tmp/workflow") -> str:
                         new_nodes_list.append([head, next_tail])
         return nodes + new_nodes_list
 
-    with open(file_path, 'r') as file:
-        node_edge_data = json.load(file)
+    try:
+        node_edge_data = json.loads(json_string)
+        print("JSON successfully loaded！")
+    except json.JSONDecodeError as e:
+        print("JSON loading error", e)
     tool_node = {}
     createdata_node = {}
     for node in node_edge_data["data"]["nodes"]:
@@ -148,9 +152,10 @@ def parse_frontend(filepath: str, output_floder: str = "tmp/workflow") -> str:
     if not os.path.exists(output_floder):
         os.makedirs(output_floder)
 
-    file_name_with_extension = os.path.basename(file_path)
-    file_name_without_extension = os.path.splitext(file_name_with_extension)[0]
-    output_path = os.path.join(output_floder, f"{file_name_without_extension}.yaml")
+    #file_name_with_extension = os.path.basename(file_path)
+    #file_name_without_extension = os.path.splitext(file_name_with_extension)[0]
+    uid = str(uuid.uuid4())
+    output_path = os.path.join(output_floder, f"{uid}.yaml")
 
     with open(output_path, "w", encoding="utf-8") as file:
         yaml.dump(yaml_dict, file, allow_unicode=True, sort_keys=False)
@@ -282,4 +287,7 @@ if __name__ == "__main__":
     # workflow.run(num_repeats=1)
     """
     file_path = "/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/configs/workflow/Stable_molecule_design.json"
-    fronted_file = parse_frontend(file_path)
+    with open(file_path, "r") as f:
+        json_data = json.load(f)
+    json_string = json.dumps(json_data, ensure_ascii=False, indent=4)
+    fronted_file = parse_frontend(json_string)
