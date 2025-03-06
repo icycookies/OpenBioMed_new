@@ -6,7 +6,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import argparse
 from datetime import datetime
 import shutil
-import imageio
 from rdkit.Chem import Draw, rdDepictor
 
 from open_biomed.core.tool import Tool
@@ -21,6 +20,7 @@ def convert_png2gif(png_dir, gif_file, fps=0.5):
     :param png_file
     :param gif_file
     """
+    import imageio
     frames = [imageio.v2.imread(os.path.join(png_dir, f)) for f in sorted(os.listdir(png_dir)) if f.endswith(".png")]
     imageio.mimsave(gif_file, frames, fps=fps)
 
@@ -32,51 +32,54 @@ def visualize_complex_3D(
     rotate=False,
     num_frames=20
 ):
-    from pymol import cmd
-    cmd.reinitialize()
-    cmd.bg_color(getattr(config, "background_color", "white"))
-    cmd.set("ray_opaque_background", getattr(config, "ray_opaque_background", 1))
-    
-    if ligand_file is not None:
-        cmd.load(ligand_file, "ligand")
-        for elem in config.molecule.show:
-            cmd.show(elem, "ligand")
-        for elem in config.molecule.__dict__.keys():
-            if elem not in ["show", "mode"]:
-                cmd.set(elem, config.molecule.__dict__[elem], "ligand")
-        cmd.orient("ligand")
-    if protein_file is not None:
-        cmd.load(protein_file, "protein")
-        cmd.hide("everything", "protein")
-        for elem in config.protein.show:
-            cmd.show(elem, "protein")
-        for elem in config.protein.__dict__.keys():
-            if elem not in ["color", "show", "cnc"]:
-                cmd.set(elem, config.protein.__dict__[elem], "protein")
-        cmd.color(getattr(config.protein, "color", "grey"), "protein")
-        if getattr(config.protein, "cnc", False):
-            cmd.util.cnc("protein")
-        cmd.orient("protein")
+    try:
+        from pymol import cmd
+        cmd.reinitialize()
+        cmd.bg_color(getattr(config, "background_color", "white"))
+        cmd.set("ray_opaque_background", getattr(config, "ray_opaque_background", 1))
+        
+        if ligand_file is not None:
+            cmd.load(ligand_file, "ligand")
+            for elem in config.molecule.show:
+                cmd.show(elem, "ligand")
+            for elem in config.molecule.__dict__.keys():
+                if elem not in ["show", "mode"]:
+                    cmd.set(elem, config.molecule.__dict__[elem], "ligand")
+            cmd.orient("ligand")
+        if protein_file is not None:
+            cmd.load(protein_file, "protein")
+            cmd.hide("everything", "protein")
+            for elem in config.protein.show:
+                cmd.show(elem, "protein")
+            for elem in config.protein.__dict__.keys():
+                if elem not in ["color", "show", "cnc"]:
+                    cmd.set(elem, config.protein.__dict__[elem], "protein")
+            cmd.color(getattr(config.protein, "color", "grey"), "protein")
+            if getattr(config.protein, "cnc", False):
+                cmd.util.cnc("protein")
+            cmd.orient("protein")
 
-    cmd.zoom("all")
-    
-    if rotate:
-        cmd.mset(f"1 x{num_frames}")
-        cmd.util.mroll(1, num_frames, 360 // num_frames)
+        cmd.zoom("all")
+        
+        if rotate:
+            cmd.mset(f"1 x{num_frames}")
+            cmd.util.mroll(1, num_frames, 360 // num_frames)
 
-        name_dir = os.path.dirname(file)
-        name_base = os.path.basename(file)
-        name_time = datetime.now()
-        name_temp = os.path.join(name_dir, "rotate_png_"+name_time.strftime("%Y%m%d_%H%M%S")+"_"+name_base[:-4])
-        if not os.path.exists(name_temp):
-            os.makedirs(name_temp)
-        cmd.mpng(f"{name_temp}/", width=config.width, height=config.height)
+            name_dir = os.path.dirname(file)
+            name_base = os.path.basename(file)
+            name_time = datetime.now()
+            name_temp = os.path.join(name_dir, "rotate_png_"+name_time.strftime("%Y%m%d_%H%M%S")+"_"+name_base[:-4])
+            if not os.path.exists(name_temp):
+                os.makedirs(name_temp)
+            cmd.mpng(f"{name_temp}/", width=config.width, height=config.height)
 
-        convert_png2gif(name_temp, file)
-        if os.path.exists(name_temp):
-            shutil.rmtree(name_temp)
-    else:
-        cmd.png(file, width=config.width, height=config.height, dpi=config.dpi)
+            convert_png2gif(name_temp, file)
+            if os.path.exists(name_temp):
+                shutil.rmtree(name_temp)
+        else:
+            cmd.png(file, width=config.width, height=config.height, dpi=config.dpi)
+    except ImportError:
+        print("Please intall PyMol to enable 3D visualization!")
 
 def visualize_protein_with_pocket(
     file: str,
@@ -86,41 +89,43 @@ def visualize_protein_with_pocket(
     rotate=False,
     num_frames=50
 ) -> str:
-    from pymol import cmd
-    cmd.reinitialize()
-    cmd.bg_color(getattr(config, "background_color", "white"))
-    cmd.set("ray_opaque_background", getattr(config, "ray_opaque_background", 1))
-    
-    cmd.load(protein_file, "protein")
-    cmd.hide("everything", "protein")
-    cmd.show("surface", "protein")
-    residues = "+".join([str(elem) for elem in pocket_indices])
-    cmd.select("highlight", f"protein and resi {residues}")
-    
-    # Color the selected residues with the chosen highlight color
-    cmd.color("red", "highlight")
-    cmd.color("grey", "protein and not highlight")
-    
-    cmd.set("transparency", 0.3, "protein and not highlight")
+    try:
+        from pymol import cmd
+        cmd.reinitialize()
+        cmd.bg_color(getattr(config, "background_color", "white"))
+        cmd.set("ray_opaque_background", getattr(config, "ray_opaque_background", 1))
+        
+        cmd.load(protein_file, "protein")
+        cmd.hide("everything", "protein")
+        cmd.show("surface", "protein")
+        residues = "+".join([str(elem) for elem in pocket_indices])
+        cmd.select("highlight", f"protein and resi {residues}")
+        
+        # Color the selected residues with the chosen highlight color
+        cmd.color("red", "highlight")
+        cmd.color("grey", "protein and not highlight")
+        
+        cmd.set("transparency", 0.3, "protein and not highlight")
 
-    if rotate:
-        cmd.mset(f"1 x{num_frames}")
-        cmd.util.mroll(1, num_frames, 360 // num_frames)
+        if rotate:
+            cmd.mset(f"1 x{num_frames}")
+            cmd.util.mroll(1, num_frames, 360 // num_frames)
 
-        name_dir = os.path.dirname(file)
-        name_base = os.path.basename(file)
-        name_time = datetime.now()
-        name_temp = os.path.join(name_dir, "protein_pocket_"+name_time.strftime("%Y%m%d_%H%M%S")+"_"+name_base[:-4])
-        if not os.path.exists(name_temp):
-            os.makedirs(name_temp)
-        cmd.mpng(f"{name_temp}/", width=config.width, height=config.height)
+            name_dir = os.path.dirname(file)
+            name_base = os.path.basename(file)
+            name_time = datetime.now()
+            name_temp = os.path.join(name_dir, "protein_pocket_"+name_time.strftime("%Y%m%d_%H%M%S")+"_"+name_base[:-4])
+            if not os.path.exists(name_temp):
+                os.makedirs(name_temp)
+            cmd.mpng(f"{name_temp}/", width=config.width, height=config.height)
 
-        convert_png2gif(name_temp, file)
-        if os.path.exists(name_temp):
-            shutil.rmtree(name_temp)
-    else:
-        cmd.png(file, width=config.width, height=config.height, dpi=config.dpi)
-
+            convert_png2gif(name_temp, file)
+            if os.path.exists(name_temp):
+                shutil.rmtree(name_temp)
+        else:
+            cmd.png(file, width=config.width, height=config.height, dpi=config.dpi)
+    except:
+        print("Please Install PyMol to enable 3D visualization!")
     return file
 
 class Visualizer(Tool):

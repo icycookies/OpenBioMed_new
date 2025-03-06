@@ -109,7 +109,7 @@ class Workflow():
                         file_path = os.path.join(dir_name, file_name)
                         outputs[0][0].save_pdb(file_path)
                         tool_outputs.write(file_path+"\n")
-                    elif outputs[1][0][-4:] in [".png"]:
+                    elif outputs[1][0][-4:] in [".png"] and os.path.exists(outputs[1][0]):
                         file_path = os.path.join(dir_name, file_name)
                         os.rename(outputs[1][0], file_path)
                         tool_outputs.write(file_path+"\n")
@@ -125,7 +125,8 @@ class Workflow():
                                 key = out_name_mapping[key]
                             context.write(f'Tool No.{u + 1} passes its "{key}" output to Tool No.{out_node + 1}\n')
                             self.nodes[out_node].inputs[key] = copy.deepcopy(value)
-            except:
+            except Exception as e:
+                print(e)
                 context.write("The workflow execution failed")
 
 if __name__ == "__main__":

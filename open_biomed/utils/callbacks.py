@@ -10,9 +10,6 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 import re
 import torch
 
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from nltk.translate.meteor_score import meteor_score
-from rouge_score import rouge_scorer
 from transformers import BertTokenizerFast
 
 class Queue:
@@ -161,6 +158,10 @@ class TextOverlapEvalCallback(pl.Callback):
         trainer: pl.Trainer, 
         pl_module: pl.LightningModule
     ) -> None:
+        from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+        from nltk.translate.meteor_score import meteor_score
+        from rouge_score import rouge_scorer
+        
         scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'])
 
         gts = self.eval_dataset.labels

@@ -15,7 +15,7 @@ def test_text_based_molecule_editing():
     pipeline = InferencePipeline(
         task="text_based_molecule_editing",
         model="molt5",
-        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/text_based_molecule_editing/molt5-fs_mol_edit/train/checkpoints/last.ckpt",
+        model_ckpt="./checkpoints/server/text_based_molecule_editing_biot5.ckpt",
         device="cuda:0"
     )
     input_smiles = "Nc1[nH]c(C(=O)c2ccccc2)c(-c2ccccn2)c1C(=O)c1c[nH]c2ccc(Br)cc12"
@@ -33,11 +33,11 @@ def test_pocket_molecule_docking():
     pipeline = InferencePipeline(
         task="pocket_molecule_docking",
         model="pharmolix_fm",
-        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/pharmolix_fm.ckpt",
+        model_ckpt="./checkpoints/server/pharmolix_fm.ckpt",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("./checkpoints/server/test_data/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("./checkpoints/server/test_data/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         molecule=ligand,
@@ -50,11 +50,11 @@ def test_structure_based_drug_design():
     pipeline = InferencePipeline(
         task="structure_based_drug_design",
         model="pharmolix_fm",
-        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/pharmolix_fm.ckpt",
+        model_ckpt="./checkpoints/server/pharmolix_fm.ckpt",
         device="cuda:0"
     )
-    protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-    ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
+    protein = Protein.from_pdb_file("./checkpoints/server/test_data/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("./checkpoints/server/test_data/4xli_B_ref.sdf")
     pocket = Pocket.from_protein_ref_ligand(protein, ligand)
     outputs = pipeline.run(
         pocket=pocket
@@ -63,21 +63,17 @@ def test_structure_based_drug_design():
     return pipeline
 
 def test_protein_molecule_docking():
-    try:
-        protein = Protein.from_pdb_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B.pdb")
-        ligand = Molecule.from_sdf_file("/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/tmp/sbdd/4xli_B_ref.sdf")
-        vina = VinaDockTask(mode="dock")
-        print(vina.run(ligand, protein)[0][0])
-        return vina
-    except:
-        print("AutoDockVina not supported.")
+    protein = Protein.from_pdb_file("./checkpoints/server/test_data/4xli_B.pdb")
+    ligand = Molecule.from_sdf_file("./checkpoints/server/test_data/4xli_B_ref.sdf")
+    vina = VinaDockTask(mode="dock")
+    print(vina.run(ligand, protein)[0][0])
     return vina
     
 def test_molecule_question_answering():
     pipeline = InferencePipeline(
         task="molecule_question_answering",
         model="biot5",
-        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/molecule_question_answering/biot5-MQA/train/checkpoints/last.ckpt",
+        model_ckpt="./checkpoints/server/molecule_question_answering_biot5.ckpt",
         device="cuda:0"
     )
     molecule = Molecule.from_smiles("C[C@@H]1CCCCO[C@@H](CN(C)C(=O)Cc2ccccc2)[C@@H](C)CN([C@@H](C)CO)C(=O)c2cc(NS(C)(=O)=O)ccc2O1")
@@ -93,7 +89,7 @@ def test_protein_question_answering():
     pipeline = InferencePipeline(
         task="protein_question_answering",
         model="biot5",
-        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/logs/protein_question_answering/biot5-PQA/train/checkpoints/last.ckpt",
+        model_ckpt="./checkpoints/server/protein_question_answering_biot5.ckpt",
         device="cuda:0"
     )
     protein = Protein.from_fasta("MRVGVIRFPGSNCDRDVHHVLELAGAEPEYVWWNQRNLDHLDAVVIPGGFSYGDYLRAGAIAAITPVMDAVRELVREEKPVLGICNGAQILAEVGLVPGVFTVNEHPKFNCQWTELRVKTTRTPFTGLFKKDEVIRMPVAHAEGRYYHDNISEVWENDQVVLQFHGENPNGSLDGITGVCDESGLVCAVMPHPERASEEILGSVDGFKFFRGILKFRG")
@@ -109,18 +105,14 @@ def test_mutation_explanation():
     pipeline = InferencePipeline(
         task="mutation_explanation",
         model="mutaplm",
-        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/mutaplm.pth",
+        model_ckpt="./checkpoints/server/mutaplm.pth",
         device="cuda:0"
     )
-    # protein = Protein.from_fasta("MQPWHGKAMQRASEAGATAPKASARNARGAPMDPTESPAAPEAALPKAGKFGPARKSGSRQKKSAPDTQERPPVRATGARAKKAPQRAQDTQPSDATSAPGAEGLEPPAAREPALSRAGSCRQRGARCSTKPRPPPGPWDVPSPGLPVSAPILVRRDAAPGASKLRAVLEKLKLSRDDISTAAGMVKGVVDHLLLRLKCDSAFRGVGLLNTGSYYEHVKISAPNEFDVMFKLEVPRIQLEEYSNTRAYYFVKFKRNPKENPLSQFLEGEILSASKMLSKFRKIIKEEINDIKDTDVIMKRKRGGSPAVTLLISEKISVDITLALESKSSWPASTQEGLRIQNWLSAKVRKQLRLKPFYLVPKHAKEGNGFQEETWRLSFSHIEKEILNNHGKSKTCCENKEEKCCRKDCLKLMKYLLEQLKERFKDKKHLDKFSSYHVKTAFFHVCTQNPQDSQWDRKDLGLCFDNCVTYFLQCLRTEKLENYFIPEFNLFSSNLIDKRSKEFLTKQIEYERNNEFPVFDEF")
-    # mutation = "D95A"
     protein = Protein.from_fasta("MTLENVLEAARHLHQTLPALSEFGNWPTDLTATGLQPRAIPATPLVQALDQPGSPRTTGLVQAIRSAAHLAHWKRTYTEAEVGADFRNRYGYFELFGPTGHFHSTQLRGYVAYWGAGLDYDWHSHQAEELYLTLAGGAVFKVDGERAFVGAEGTRLHASWQSAAMSTGDQPILTFVLWRGEGLNALPRMDAA")
     mutation = "H163A"
-    function = Text.from_str("Able to cleave dimethylsulfonioproprionate (DMSP) in vitro, releasing dimethyl sulfide (DMS). DMS is the principal form by which sulfur is transported from oceans to the atmosphere. The real activity of the protein is however subject to debate and it is unclear whether it constitutes a real dimethylsulfonioproprionate lyase in vivo: the very low activity with DMSP as substrate suggests that DMSP is not its native substrate.")
     outputs = pipeline.run(
         protein=protein,
         mutation=mutation,
-        #function=function,
     )
     print(outputs)
     return pipeline
@@ -129,8 +121,8 @@ def test_mutation_engineering():
     pipeline = InferencePipeline(
         task="mutation_engineering",
         model="mutaplm",
-        model_ckpt="/AIRvePFS/dair/luoyz-data/projects/OpenBioMed/OpenBioMed_arch/checkpoints/demo/mutaplm.pth",
-        device="cuda:2"
+        model_ckpt="./checkpoints/server/mutaplm.pth",
+        device="cuda:0"
     )
     protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
     prompt = Text.from_str("Strongly enhanced InsP6 kinase activity. The mutation in the ITPK protein causes a change in its catalytic activity.")
@@ -149,13 +141,13 @@ def test_protein_generation():
     from open_biomed.utils.config import Config
     config = Config(config_file="./configs/model/progen.yaml").model
     model = PROTEIN_DECODER_REGISTRY["progen"](config)
-    model = model.to("cuda:1")
+    model = model.to("cuda:0")
     print(model.generate_protein()[0])
     protein = Protein.from_fasta('GFLPFRGADEGLAAREAATLAARGTAARAYREDSWAVPVPRGLLGDLTARVAALGAASPPPADPLAVTLDLHHVTAEVALTTVLDAATLVHGQTRVLSAEDAAEAATAAAAATEAYLERLQDFVLFMSASVRVWRRGNAAGATGPEWDQWYTVADRDALGSAPTHLAVLGRQADALCHFVLDRVAWGTCGTPLWSGDEDLGNVVATFAGYADRLATAPRDLIM')
     protein = model.collator([model.featurizer(protein)])
     protein = {
-        "input_ids": protein["input_ids"].to("cuda:1"),
-        "attention_mask": protein["attention_mask"].to("cuda:1"),
+        "input_ids": protein["input_ids"].to("cuda:0"),
+        "attention_mask": protein["attention_mask"].to("cuda:0"),
     }
     print(model.generate_loss(protein))
 
@@ -171,7 +163,7 @@ def test_molecule_property_prediction():
         pipelines[task] = InferencePipeline(
             task="molecule_property_prediction",
             model="graphmvp",
-            model_ckpt=f"/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/logs/molecule_property_prediction/graphmvp-{task}/train/checkpoints/last.ckpt",
+            model_ckpt=f"./checkpoints/server/graphmvp-{task}.ckpt",
             additional_config=f"./configs/dataset/{task.lower()}.yaml",
             device="cuda:0",
             output_prompt=OUTPUT_PROMPTS[task],
@@ -190,8 +182,8 @@ def test_protein_folding():
     pipeline = InferencePipeline(
         task="protein_folding",
         model="esmfold",
-        model_ckpt="/AIRvePFS/dair/users/ailin/.cache/huggingface/hub/esmfold_v1/pytorch_model.bin",
-        device="cuda:2"
+        model_ckpt="./checkpoints/server/esmfold.ckpt",
+        device="cuda:0"
     )
     protein = Protein.from_fasta("MASDAAAEPSSGVTHPPRYVIGYALAPKKQQSFIQPSLVAQAASRGMDLVPVDASQPLAEQGPFHLLIHALYGDDWRAQLVAFAARHPAVPIVDPPHAIDRLHNRISMLQVVSELDHAADQDSTFGIPSQVVVYDAAALADFGLLAALRFPLIAKPLVADGTAKSHKMSLVYHREGLGKLRPPLVLQEFVNHGGVIFKVYVVGGHVTCVKRRSLPDVSPEDDASAQGSVSFSQVSNLPTERTAEEYYGEKSLEDAVVPPAAFINQIAGGLRRALGLQLFNFDMIRDVRAGDRYLVIDINYFPGYAKMPGYETVLTDFFWEMVHKDGVGNQQEEKGANHVVVK")
     outputs = pipeline.run(

@@ -84,6 +84,7 @@ class VinaDockTask(Tool):
             
             prot_pqr = pdb_file.replace(".pdb", ".pqr")
             if not os.path.exists(prot_pqr):
+                # TODO: update this line
                 subprocess.Popen(['/AIRvePFS/dair/conda_envs/biomed/bin/pdb2pqr30','--ff=AMBER', pdb_file, prot_pqr],
                             stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL).communicate()
             prot_pdbqt = pdb_file.replace(".pdb", ".pdbqt")
@@ -106,5 +107,6 @@ class VinaDockTask(Tool):
                 score = v.energies(n_poses=1)[0][0]
                 pose_file = "None"
             return [score], [pose_file]
-        except:
-            raise ImportError()
+        except ImportError:
+            print("AutoDockVina not installed. This function return 0.0.")
+            return [0.0], ["0.0"]
