@@ -331,7 +331,7 @@ def handle_visualize_protein_pocket(request: TaskRequest, pipeline):
     pocket = IO_Reader.get_pocket(request.pocket)
     vis_process = [
                     "python3", "./open_biomed/core/visualize.py", 
-                    "--task", "visualize_protein",
+                    "--task", "visualize_protein_pocket",
                     "--save_output_filename", "./tmp/protein_pocket_visualization_file.txt",
                     "--protein", request.protein,
                     "--pocket", request.pocket]
