@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 import contextlib
+from huggingface_hub import snapshot_download
+import logging
 import numpy as np
 import os
 import torch
@@ -53,6 +55,10 @@ class ProGenCollator(Collator):
 class ProGen(ProteinDecoder):
     def __init__(self, model_cfg: Config) -> None:
         super().__init__(model_cfg)
+        if not os.path.exists(model_cfg.protein_model):
+            os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+            logging.info("Repo not found. Try downloading from snapshot")
+            snapshot_download(repo_id="hugohrban/progen2-base", local_dir=model_cfg.hf_model_name_or_path, force_download=True)
         self.model = ProGenForCausalLM.from_pretrained(model_cfg.model_name_or_path)
         if getattr(model_cfg, "fp16", False):
             self.model = self.model.to(torch.bfloat16)

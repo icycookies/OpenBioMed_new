@@ -5,6 +5,8 @@ import logging
 import torch
 import torch.nn as nn
 
+from huggingface_hub import snapshot_download
+import os
 from transformers import PreTrainedTokenizer, LlamaTokenizer, LlamaConfig, LlamaForCausalLM, EsmTokenizer, DataCollatorWithPadding
 from peft import get_peft_model, LoraConfig, TaskType
 
@@ -128,11 +130,19 @@ class MutaPLM(MutationExplanationModel, MutationEngineeringModel):
         
         # load esm
         logging.info("*** loading protein model...")
+        if not os.path.exists(model_cfg.protein_model):
+            os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+            logging.info("Repo not found. Try downloading from snapshot")
+            snapshot_download(repo_id="facebook/esm2_t33_650M_UR50D", local_dir=model_cfg.hf_model_name_or_path, force_download=True)
         self.protein_model = EsmForMutationDesign.from_pretrained(model_cfg.protein_model, torch_dtype=torch.bfloat16) # delta decoder is here
         self.protein_tokenizer = EsmTokenizer.from_pretrained(model_cfg.protein_model)
 
         # load llm
         logging.info("*** loading llm tokenizer...")
+        if not os.path.exists(model_cfg.protein_model):
+            os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+            logging.info("Repo not found. Try downloading from snapshot")
+            snapshot_download(repo_id="PharMolix/BioMedGPT-LM-7B", local_dir=model_cfg.hf_model_name_or_path, force_download=True)
         self.llm_tokenizer = LlamaTokenizer.from_pretrained(model_cfg.llama_ckpt, truncation_side="left")
         self.llm_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         self.llm_tokenizer.add_special_tokens({'bos_token': '<s>'})

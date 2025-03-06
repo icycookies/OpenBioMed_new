@@ -1,11 +1,13 @@
 import contextlib
 from typing import Any, Dict, List, Optional, Tuple
 
+from huggingface_hub import snapshot_download
 import logging
+import os
 import torch
 import torch.nn as nn
-
 from transformers import EsmTokenizer, DataCollatorWithPadding
+
 from open_biomed.models.protein.esmfold.modeling_esmfold import EsmForProteinFolding
 from open_biomed.data import Protein
 from open_biomed.models.task_models.protein_folding import ProteinFoldingModel
@@ -44,6 +46,10 @@ class ProteinEsmFeaturizer(Featurizer):
 class EsmFold(ProteinFoldingModel):
     def __init__(self, model_cfg: Config) -> None:
         super(EsmFold, self).__init__(model_cfg)
+        if not os.path.exists(model_cfg.hf_model_name_or_path):
+            os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+            logging.info("Repo not found. Try downloading from snapshot")
+            snapshot_download(repo_id="facebook/esmfold_v1", local_dir=model_cfg.hf_model_name_or_path, force_download=True)
         # load tokenizer
         logging.info("*** loading protein esm tokenizer...")
         self.protein_tokenizer = EsmTokenizer.from_pretrained(model_cfg.hf_model_name_or_path)

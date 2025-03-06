@@ -1,6 +1,6 @@
 model:
   name: esmfold
-  hf_model_name_or_path: /AIRvePFS/dair/users/ailin/.cache/huggingface/hub/esmfold_v1
+  hf_model_name_or_path: ./checkpoints/esmfold_v1
   max_length: 1024
   half: True
   chunk_size: 64

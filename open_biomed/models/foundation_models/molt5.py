@@ -1,6 +1,9 @@
 from typing import Dict, List
 from typing_extensions import Any
 
+from huggingface_hub import snapshot_download
+import logging
+import os
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration, DataCollatorWithPadding
 from transformers.modeling_outputs import BaseModelOutput
@@ -14,6 +17,10 @@ from open_biomed.utils.misc import concatenate_tokens
 class MolT5(TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMoleculeGenerationModel, MoleculeQAModel):
     def __init__(self, model_cfg: Config) -> None:
         super(MolT5, self).__init__(model_cfg)
+        if not os.path.exists(model_cfg.hf_model_name_or_path):
+            os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+            logging.info("Repo not found. Try downloading from snapshot")
+            snapshot_download(repo_id="laituan245/molt5-base", local_dir=model_cfg.hf_model_name_or_path, force_download=True)
         self.main_model = T5ForConditionalGeneration.from_pretrained(model_cfg.hf_model_name_or_path)
         self.tokenizer = T5Tokenizer.from_pretrained(model_cfg.hf_model_name_or_path)
         self.featurizers = {

@@ -79,7 +79,7 @@ def parse_frontend(filepath: str, output_floder: str = "tmp/workflow") -> str:
                         new_nodes_list.append([head, next_tail])
         return nodes + new_nodes_list
 
-    with open(file_path, 'r') as file:
+    with open(filepath, 'r') as file:
         node_edge_data = json.load(file)
     tool_node = {}
     createdata_node = {}
@@ -148,7 +148,7 @@ def parse_frontend(filepath: str, output_floder: str = "tmp/workflow") -> str:
     if not os.path.exists(output_floder):
         os.makedirs(output_floder)
 
-    file_name_with_extension = os.path.basename(file_path)
+    file_name_with_extension = os.path.basename(filepath)
     file_name_without_extension = os.path.splitext(file_name_with_extension)[0]
     output_path = os.path.join(output_floder, f"{file_name_without_extension}.yaml")
 
@@ -270,7 +270,6 @@ class Workflow():
                 context.write("The workflow execution failed")
 
 if __name__ == "__main__":
-    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--workflow", type=str, default="stable_drug_design")
     parser.add_argument("--num_repeats", type=int, default=1)
@@ -280,6 +279,5 @@ if __name__ == "__main__":
     workflow = Workflow(config)
     asyncio.run(workflow.run(num_repeats=args.num_repeats, context=open("./logs/workflow_outputs.txt", "w"), tool_outputs=open("./logs/workflow_tool_outputs.txt", "w")))
     # workflow.run(num_repeats=1)
-    """
-    file_path = "/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/configs/workflow/Stable_molecule_design.json"
-    fronted_file = parse_frontend(file_path)
+    # file_path = "/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/configs/workflow/Stable_molecule_design.json"
+    # fronted_file = parse_frontend(file_path)

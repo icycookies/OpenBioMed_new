@@ -1,20 +1,29 @@
 from typing import Dict, List
 from typing_extensions import Any
 
+from huggingface_hub import snapshot_download
+import logging
+import os
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration, DataCollatorWithPadding
 from transformers.modeling_outputs import BaseModelOutput
+import selfies as sf
 
 from open_biomed.data import Molecule, Text
 from open_biomed.models.task_models import TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMoleculeGenerationModel
 from open_biomed.utils.config import Config
 from open_biomed.utils.featurizer import MoleculeTransformersFeaturizer, TextTransformersFeaturizer, Featurized
 from open_biomed.utils.misc import concatenate_tokens
-import selfies as sf
+
 
 class BioT5_PLUS(TextBasedMoleculeEditingModel, MoleculeCaptioningModel, TextGuidedMoleculeGenerationModel):
     def __init__(self, model_cfg: Config) -> None:
         super(BioT5_PLUS, self).__init__(model_cfg)
+
+        if not os.path.exists(model_cfg.hf_model_name_or_path):
+            os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+            logging.info("Repo not found. Try downloading from snapshot")
+            snapshot_download(repo_id="QizhiPei/biot5-plus-base", local_dir=model_cfg.hf_model_name_or_path, force_download=True)
         self.main_model = T5ForConditionalGeneration.from_pretrained(model_cfg.hf_model_name_or_path)
         self.tokenizer = T5Tokenizer.from_pretrained(model_cfg.hf_model_name_or_path)
         self.featurizers = {
