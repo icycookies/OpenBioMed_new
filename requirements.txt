@@ -11,3 +11,8 @@ absl-py==2.1.0
 easydict==1.13
 ratelimiter==1.2.0.post0
 openai==1.64.0
+uvicorn===0.32.1
+fastapi===0.115.5
+oss2==2.19.1
+dotenv==1.0.1
+protobuf==5.28.3

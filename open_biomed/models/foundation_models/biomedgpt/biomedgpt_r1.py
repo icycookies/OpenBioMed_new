@@ -44,7 +44,7 @@ class BioMedGPTR1Featurizer(Featurizer):
         featurized_protein = [self.protein_featurizer(prot) for prot in protein] 
         cur_mol, cur_prot = 0, 0
         
-        all_tokens = [torch.ones(1, dtype=torch.long) * self.llm_tokenizer.bos_token_id]
+        all_tokens = []
         pattern = re.compile("<moleculeHere>|<proteinHere>")
         p_text = pattern.split(text)
         spec_tokens = pattern.findall(text)
@@ -142,7 +142,6 @@ class BioMedGPTR1(BaseModel):
         # load llm
         self.llm_tokenizer = AutoTokenizer.from_pretrained(config.llm.model_name_or_path, use_fast=False, truncation_side="left")
         logging.info("loading llm")
-        # self.llm = AutoModelForCausalLM.from_pretrained(config.llm.model_name_or_path, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, device_map='auto')
         self.llm_config = LlamaConfig.from_json_file(os.path.join(config.llm.model_name_or_path, "config.json"))
         self.llm = Qwen2ForCausalLM(self.llm_config)
         if config.llm.use_float16:
@@ -174,6 +173,7 @@ class BioMedGPTR1(BaseModel):
         state_dict = torch.load(open(os.path.join(model_name_or_path, "pytorch_model.bin"), "rb"), map_location="cpu")
         model.load_state_dict(state_dict)
         model = model.to(device)
+        model.eval()
         return model
 
     def add_padding(self, 
@@ -332,7 +332,7 @@ class BioMedGPTR14Chat(BioMedGPTR1, ChatModel):
         }
 
     def append_molecule(self, molecule: Molecule):
-        msg = f"<molecule><representation><moleculeHere></representation><SMILES>{molecule}</SMILES></molecule>"
+        msg = f"<molecule><representation><moleculeHere></representation><SMILES>{molecule}</SMILES></molecule> "
         molecule = self.collator.molecule_collator([self.featurizer.molecule_featurizer(molecule)]).to(self.device)
         with self.maybe_autocast(self.device):
             mol_embeds = self.mol_structure_encoder(molecule)
@@ -349,7 +349,7 @@ class BioMedGPTR14Chat(BioMedGPTR1, ChatModel):
             prot_embeds = self.prot_structure_encoder(**protein).last_hidden_state
             prot_embeds = self.proj_prot(prot_embeds)
             self.prot_embs.append(prot_embeds)
-        msg = "<protein><proteinHere></protein>"
+        msg = "<protein><proteinHere></protein> "
         if len(self.messages) > 0 and self.messages[-1][0] == ChatModel.Role.USER:
             self.messages[-1][1] += msg
         else:
@@ -359,7 +359,7 @@ class BioMedGPTR14Chat(BioMedGPTR1, ChatModel):
         ret = ""
         for role, message in self.messages:
             if message:
-                ret += self.role_dict[role] + self.config.sep_tokens + message + self.config.sep_tokens
+                ret += self.role_dict[role] + "\n" + message + "\n"
             else:
                 ret += self.role_dict[role] + "<think>\n"
         return ret
@@ -377,7 +377,7 @@ class BioMedGPTR14Chat(BioMedGPTR1, ChatModel):
         spec_tokens = pattern.findall(inputs)
         assert len(p_text) == len(self.mol_embs) + len(self.prot_embs) + 1, "Unmatched numbers of placeholders and molecules."
         seg_tokens = [
-            self.llm_tokenizer([seg], return_tensors="pt", add_special_tokens=(i == 0)).to(self.device)
+            self.llm_tokenizer([seg], return_tensors="pt", add_special_tokens=False).to(self.device)
             for i, seg in enumerate(p_text) 
         ]
         seg_embs = [self.llm.get_input_embeddings()(seg_token.input_ids) for seg_token in seg_tokens]
