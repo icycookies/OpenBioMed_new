@@ -20,18 +20,26 @@ from open_biomed.data import Molecule, Protein, Text
 from open_biomed.utils.misc import wrap_and_select_outputs, create_tool_input
 
 def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str:
+    
+    param_mapping = {
+        "molecule_name_request": {"query": "accession"},
+        "molecule_structure_request": {"query": "accession"},
+        "protein_uniprot_request": {"query": "accession"},
+        "protein_pdb_request": {"query": "accession"},
+        "pubchemid_search": {"query": "accession"}
 
+    }
     def get_createdata_node(node):
         node_dict = {}
         id = node["id"]
-        node_dict["value"] = []
+        node_dict["value"] = {}
         description = node["data"]["node"]["description"]
         data_context = node["data"]["node"]["template"]
         keys = list(data_context)
         pattern = re.compile(r'^field_\d+_key$')  # get param
         filtered_keys = [key for key in keys if pattern.match(key)]
         for key in filtered_keys:
-            node_dict["value"].append(data_context[key]["value"])
+            node_dict["value"].update(data_context[key]["value"])
         return node_dict
 
     # just get id and description
@@ -72,13 +80,16 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
                 for j, (next_head, next_tail) in enumerate(node_list_copy):
                     if i != j and head == next_tail:
                         # merge path
-                        new_nodes_list.append([next_head, tail])
+                        new_nodes_list.append((next_head, tail))
             if any(keyword in tail for keyword in keywords):
                 for j, (next_head, next_tail) in enumerate(node_list_copy):
                     if i != j and tail == next_head:
                         # merge path
-                        new_nodes_list.append([head, next_tail])
-        return nodes + new_nodes_list
+                        new_nodes_list.append((head, next_tail))
+
+        new_nodes_list = [list(i) for i in set(new_nodes_list)]
+        
+        return nodes, new_nodes_list
 
     try:
         node_edge_data = json.loads(json_string)
@@ -108,7 +119,16 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
             edge_list.append([source, target])
 
     path_nodes = copy.deepcopy(edge_list)
-    merge_nodes_list = merge_nodes(path_nodes)
+    path_nodes, new_path_nodes = merge_nodes(path_nodes)
+
+    # get value for tools after merge
+    for node in new_path_nodes:
+        source = node[0]
+        target = node[1]
+        if "PharmolixCreateData" in source:
+            tool_node[target]["value"] = createdata_node[source]["value"]
+
+    merge_nodes_list = path_nodes + new_path_nodes
 
     # remove paths containing path_keywords
     path_keywords = ["MergeDataComponent", "ParseData", "ChatOutput", "ChatInput", "Image Output", "PharmolixCreateData"]
@@ -148,6 +168,16 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
 
     for path in merge_nodes_list:
         yaml_dict["edges"].append({"start": path_nodes_list.index(path[0]), "end": path_nodes_list.index(path[1])})
+
+    
+    # param_mapping
+    for node in yaml_dict["tools"]:
+        if node["name"] in param_mapping:
+            for key in list(node["inputs"].keys()):
+                if key in param_mapping[node["name"]]:
+                    new_key = param_mapping[node["name"]][key]
+                    node["inputs"][new_key] = node["inputs"].pop(key)
+
     
     if not os.path.exists(output_floder):
         os.makedirs(output_floder)
@@ -286,8 +316,8 @@ if __name__ == "__main__":
     asyncio.run(workflow.run(num_repeats=args.num_repeats, context=open("./logs/workflow_outputs.txt", "w"), tool_outputs=open("./logs/workflow_tool_outputs.txt", "w")))
     # workflow.run(num_repeats=1)
     """
-    file_path = "/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/configs/workflow/Stable_molecule_design.json"
+    file_path = "/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/configs/workflow/badcase.json"
     with open(file_path, "r") as f:
         json_data = json.load(f)
-    json_string = json.dumps(json_data, ensure_ascii=False, indent=4)
-    fronted_file = parse_frontend(json_string)
+    #json_string = json.dumps(json_data, ensure_ascii=False, indent=4)
+    fronted_file = parse_frontend(json_data)
