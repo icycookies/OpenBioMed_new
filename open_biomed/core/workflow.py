@@ -276,7 +276,7 @@ class Workflow():
 
                     tool_name = self.nodes[u].executable.print_usage().split(".\n")[0].lower().split()
                     dir_name, file_name = os.path.dirname(outputs[1][0]), os.path.basename(outputs[1][0])
-                    file_name = "_".join(tool_name) + "_" + file_name
+                    file_name = f"tool_{u+1}_"+ "_".join(tool_name) + "_" + file_name
                     if isinstance(outputs[0][0], Molecule) and hasattr(outputs[0][0], "conformer"):
                         file_name = file_name.replace("pkl", "sdf")
                         file_path = os.path.join(dir_name, file_name)

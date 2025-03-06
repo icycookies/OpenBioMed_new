@@ -15,42 +15,31 @@ app = FastAPI()
 # Define the request body model
 class ReportRequest(BaseModel):
     task: str
-    config_file: str
+    workflow: str
+    user_email: str
     num_repeats: int
 
 @app.post("/run_workflow/")
 async def run_workflow(request: ReportRequest):
     request = request.model_dump()
-    config_file = request["config_file"]
     task = request["task"].lower()
     try:
-        if task == "sbdd":
+        if task == "drug_design":
             requester = ReportGeneratorSBDD()
-            required_inputs = ["config_file", "num_repeats"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="workflow config file is required for report generation task")
-
-            resp = await requester.run(config_file=request["config_file"], num_repeats=request["num_repeats"])
-
-            report_content = resp['final_resp']
-            report_thinking = resp['reasoning']
-            return {"type": task+"_report", "content": report_content, "thinking": report_thinking}
         else:
             requester = ReportGeneratorGeneral()
-            required_inputs = ["config_file", "num_repeats"]
-            if not all(key in request for key in required_inputs):
-                raise HTTPException(
-                    status_code=400, detail="workflow config file is required for report generation task")
+        
+        required_inputs = ["workflow", "user_email", "num_repeats"]
+        if not all(key in request for key in required_inputs):
+            raise HTTPException(
+                status_code=400, detail="workflow config file is required for report generation task")
+    
+        asyncio.create_task(requester.run(workflow=request["workflow"], user_email= request["user_email"], num_repeats=request["num_repeats"]))
 
-            resp = await requester.run(config_file=request["config_file"], num_repeats=request["num_repeats"])
-
-            report_content = resp['final_resp']
-            report_thinking = resp['reasoning']
-            return {"type": task+"_report", "content": report_content, "thinking": report_thinking}
+        return {"type": task+"_report", "content": "Workflow is still running...", "thinking": ""}
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8083)
+    uvicorn.run(app, host="0.0.0.0", port=8083, limit_concurrency=2)
