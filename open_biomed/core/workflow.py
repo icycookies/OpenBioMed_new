@@ -171,7 +171,10 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
 
     
     # param_mapping
+    # TODO: hard code
     for node in yaml_dict["tools"]:
+        if "inputs" in node and "model" in list(node["inputs"].keys()):
+            node["inputs"].pop("model")
         if node["name"] in param_mapping:
             for key in list(node["inputs"].keys()):
                 if key in param_mapping[node["name"]]:
