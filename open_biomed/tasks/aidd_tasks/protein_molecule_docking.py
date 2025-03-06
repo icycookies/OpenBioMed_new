@@ -3,6 +3,7 @@ from typing import List, Optional, Union
 import contextlib
 import numpy as np
 import os
+import sys
 import pytorch_lightning as pl
 
 from open_biomed.core.tool import Tool
@@ -53,6 +54,10 @@ class DockingEvaluationCallback(pl.Callback):
 class VinaDockTask(Tool):
     def __init__(self, mode: str="dock") -> None:
         self.mode = mode
+        
+        python_path = sys.executable
+        conda_env_root = os.path.dirname(os.path.dirname(python_path))
+        self.pdb2pqr_path = os.path.join(conda_env_root, 'bin', 'pdb2pqr30')
 
     def print_usage(self) -> str:
         return "\n".join([
@@ -84,8 +89,7 @@ class VinaDockTask(Tool):
             
             prot_pqr = pdb_file.replace(".pdb", ".pqr")
             if not os.path.exists(prot_pqr):
-                # TODO: update this line
-                subprocess.Popen(['/AIRvePFS/dair/conda_envs/biomed/bin/pdb2pqr30','--ff=AMBER', pdb_file, prot_pqr],
+                subprocess.Popen([self.pdb2pqr_path,'--ff=AMBER', pdb_file, prot_pqr],
                             stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL).communicate()
             prot_pdbqt = pdb_file.replace(".pdb", ".pdbqt")
             if not os.path.exists(prot_pdbqt):

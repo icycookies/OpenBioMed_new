@@ -318,9 +318,9 @@ if __name__ == "__main__":
     asyncio.run(workflow.run(num_repeats=args.num_repeats, context=open("./logs/workflow_outputs.txt", "w"), tool_outputs=open("./logs/workflow_tool_outputs.txt", "w")))
     # workflow.run(num_repeats=1)
     """
-    file_path = "/AIRvePFS/dair/yk-data/projects/OpenBioMed_new/configs/workflow/badcase.json"
+    file_path = "configs/workflow/demo.json"
     with open(file_path, "r") as f:
         json_data = json.load(f)
-    #json_string = json.dumps(json_data, ensure_ascii=False, indent=4)
-    fronted_file = parse_frontend(json_data)
+    json_string = json.dumps(json_data, ensure_ascii=False, indent=4)
+    fronted_file = parse_frontend(json_string)
     """
