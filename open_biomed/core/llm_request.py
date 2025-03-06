@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import ast
 import asyncio
 import logging
+import shutil
 from datetime import datetime
 from typing import List, Optional, TypedDict, AsyncGenerator, Tuple
 from typing_extensions import Self
@@ -15,12 +16,16 @@ from open_biomed.data import Text
 from open_biomed.utils.config import Config
 from open_biomed.core.tool import Tool
 from open_biomed.core.web_request import WebSearchRequester
+from open_biomed.core.email_server import EmailServer
 from open_biomed.models.foundation_models.biomedgpt import BioMedGPT4Chat, BioMedGPTR14Chat
 
+from dotenv import load_dotenv
+
+load_dotenv(".env")
 API_INFOS = {
-        "api_key": "sk-VNxEQ7MFIvr44lCvLBb0aqmQVySPh1xD",
-        "api_url": "http://8.141.31.41:8000/v1",
-        "model_name": "deepseek-r1"
+        "api_key": os.getenv("API_KEY"),
+        "api_url": os.getenv("API_URL"),
+        "model_name": os.getenv("MODEL_NAME")
     }
 
 class StreamChunk(TypedDict):
@@ -250,9 +255,107 @@ class KeyInfoExtractor(Tool):
 
         return result, reasoning
 
-class ReportGeneratorSBDD(Tool):
+class ReportGeneratorGeneral(Tool):
     def __init__(self, api_infos: dict=API_INFOS) -> None:
         from open_biomed.core.oss_warpper import Oss_Warpper
+
+        self.current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.dir_path = f"./tmp/temp_{self.current_time}"
+        os.mkdir(self.dir_path)
+
+        self.title = "OpenBioMed平台工作流报告"
+        self.structure = "\n## 1. 工作流设计（对实验涉及的输入输出和使用的工具进行简要描述）\n" + \
+                            "## 2. 工作流结果与分析（对实验产生的结果进行描述，并进行适当的推理分析）\n" + \
+                            "## 3. 总结\n" + \
+                                "### 3.1 基础信息（逐点列出实验日期、生成模型为ChatDD）\n" + \
+                                "### 3.2 分析总结（对报告全文进行总结）\n"
+        self.ref_infos = f"\n\n实验时间：{self.current_time}\n" + \
+                        "生成模型名称：ChatDD（不要写明版本号）\n" + \
+                        "报告生成单位：北京水木分子生物科技有限公司\n"
+
+        self.email_subject = f"工作流报告_{self.current_time}"
+        self.email_body = "尊敬的用户，您好，\n感谢您使用OpenBioMed平台，您在平台提交的工作流已自动完成，其涉及到的输出结果文件和实验报告请参考邮件附件。"
+
+        self.llm = LLMReportGenerator(api_infos=api_infos, temperature=0.0)
+        self.oss_warpper = Oss_Warpper()
+        self.email_server = EmailServer() 
+        
+    
+    def print_usage(self) -> str:
+        return "\n".join([
+            'Report generation for general task.',
+            'Inputs: {"pipeline": pipeline for general task}',
+            'Outputs: a report for general task.'
+        ])
+    
+    async def _run_workflow(self, workflow: str, num_repeats: int):
+        from open_biomed.core.workflow import Workflow, parse_frontend
+
+        config_file = parse_frontend(workflow)
+        config = Config(config_file=config_file)
+        workflow = Workflow(config)
+        await workflow.run(num_repeats=num_repeats, context=open(f"{self.dir_path}/workflow_outputs.txt", "w"), tool_outputs=open(f"{self.dir_path}/workflow_tool_outputs.txt", "w"))
+    
+    def _gen_context(self, output_file):
+        with open(output_file, "r") as f:
+            references = f.read()
+        context = {
+            "ref_text": references + self.ref_infos,
+            "others":{
+                "title": self.title,
+                "structure": self.structure
+            }
+        }
+        return context
+    
+    def _save_zip_outputs(self, report):
+        import subprocess
+
+        with open(f"{self.dir_path}/workflow_tool_outputs.txt", "r") as f:
+            tool_outputs = f.read().split("\n")[:-1]
+        os.remove(f"{self.dir_path}/workflow_tool_outputs.txt")
+
+        for file in tool_outputs:
+            file_name = os.path.basename(file)
+            dst_path = os.path.join(self.dir_path, file_name)
+            os.rename(file, dst_path)
+        with open(os.path.join(self.dir_path, "report.md"), 'w') as f:
+            f.write(report['final_resp'])
+        subprocess.run(f"zip -r {self.dir_path}/{self.email_subject}.zip {self.dir_path}", shell=True, check=True)
+    
+    def _oss_upload(self):
+        oss_file_path = self.oss_warpper.generate_file_name(f"{self.dir_path}/{self.email_subject}.zip")
+        self.oss_warpper.upload(oss_file_path, f"{self.dir_path}/{self.email_subject}.zip")
+
+    
+    async def run(self, workflow: str, user_email: str, num_repeats: int) -> str:
+        # Workflow
+        await self._run_workflow(workflow=workflow, num_repeats=num_repeats)
+
+        # Report generation
+        context = self._gen_context(output_file=f"{self.dir_path}/workflow_outputs.txt")       
+        question = ""
+        resp = self.llm.generate(query=question, context=context, is_debug=True)
+
+        # Save & zip
+        self._save_zip_outputs(report=resp)
+        
+        # OSS uploading
+        self._oss_upload()
+
+        # Email
+        self.email_server.send(user_email=user_email, subject=self.email_subject, body=self.email_body, attachment_path=f"{self.dir_path}/{self.email_subject}.zip")
+
+        # Temporal files cleaning
+        if os.path.exists(self.dir_path):
+            shutil.rmtree(self.dir_path)
+
+        return resp
+
+class ReportGeneratorSBDD(ReportGeneratorGeneral):
+    def __init__(self, api_infos: dict=API_INFOS) -> None:
+        super(ReportGeneratorSBDD, self).__init__(api_infos=api_infos)
+
         self.title = "基于靶点的分子设计报告"
         self.structure = "\n## 1. 靶点基本信息介绍\n" + \
                                 "### 1.1 靶点简介（详细介绍靶点的生物学功能）\n" + \
@@ -293,14 +396,8 @@ class ReportGeneratorSBDD(Tool):
                             "| 氢键受体数 (HBA) | ≤ 10| 氢键受体数量过多可能导致药物在细胞膜中的滞留。|\n" + \
                             "| 可旋转键数 (RB)  | ≤ 10| 可旋转键数过多会影响药物的刚性，进而影响其生物活性。|\n" + \
                             "| 拓扑极性表面积 (TPSA) | < 140 Å² | 用于评估分子的极性表面，数值越大，分子的极性越强。|\n" 
-        current_time = datetime.now().strftime('%Y-%m-%d %A %H:%M:%S')
-        self.ref_infos = f"\n\n实验时间：{current_time}\n" + \
-                        "生成模型名称：ChatDD（不要写明版本号）\n" + \
-                        "报告生成单位：北京水木分子生物科技有限公司"
 
-        self.agent = LLMReportGenerator(api_infos=api_infos, temperature=0.0)
-        self.oss_warpper = Oss_Warpper()
-        
+        self.email_subject = f"基于靶点的分子设计报告_{self.current_time}"     
     
     def print_usage(self) -> str:
         return "\n".join([
@@ -309,19 +406,9 @@ class ReportGeneratorSBDD(Tool):
             'Outputs: a report for SBDD task.'
         ])
     
-    async def run(self, config_file: str, num_repeats: int) -> str:
-        from open_biomed.core.workflow import Workflow
-        import subprocess
-
-        config = Config(config_file=config_file)
-        workflow = Workflow(config)
-        await workflow.run(num_repeats=num_repeats, context=open("./logs/workflow_outputs.txt", "w"), tool_outputs=open("./logs/workflow_tool_outputs.txt", "w"))
-        with open("./logs/workflow_outputs.txt", "r") as f:
+    def _gen_context(self, output_file):
+        with open(output_file, "r") as f:
             references = f.read()
-
-        with open("./logs/workflow_tool_outputs.txt", "r") as f:
-            tool_outputs = f.read().split("\n")[:-1]
-
         context = {
             "ref_text": references + self.ref_ranges + self.ref_infos,
             "others":{
@@ -329,91 +416,7 @@ class ReportGeneratorSBDD(Tool):
                 "structure": self.structure
             }
         }
-        question = ""
-
-        resp = self.agent.generate(query=question, context=context, is_debug=True)
-        
-        dir_path = f"./tmp/temp_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}"
-        os.mkdir(dir_path)
-        for file in tool_outputs:
-            file_name = os.path.basename(file)
-            dst_path = os.path.join(dir_path, file_name)
-            os.rename(file, dst_path)
-        with open(os.path.join(dir_path, "report.md"), 'w') as f:
-            f.write(resp['final_resp'])
-        
-        subprocess.run(f"zip -r {dir_path}.zip {dir_path}", shell=True, check=True)
-
-        oss_file_path = self.oss_warpper.generate_file_name(f"{dir_path}.zip")
-        self.oss_warpper.upload(oss_file_path, f"{dir_path}.zip")
-
-        return resp
-
-
-class ReportGeneratorGeneral(Tool):
-    def __init__(self, api_infos: dict=API_INFOS) -> None:
-        from open_biomed.core.oss_warpper import Oss_Warpper
-        self.title = "OpenBioMed平台实验报告"
-        self.structure = "\n## 1. 实验设计（对实验涉及的输入输出和使用的工具进行简要描述）\n" + \
-                            "## 2. 实验结果与分析（对实验产生的结果进行描述，并进行适当的推理分析）\n" + \
-                            "## 3. 总结\n" + \
-                                "### 3.1 实验基础信息（逐点列出实验日期、生成模型为ChatDD）\n" + \
-                                "### 3.2 实验分析总结（对报告全文进行总结）\n"
-        current_time = datetime.now().strftime('%Y-%m-%d %A %H:%M:%S')
-        self.ref_infos = f"\n\n实验时间：{current_time}\n" + \
-                        "生成模型名称：ChatDD（不要写明版本号）\n" + \
-                        "报告生成单位：北京水木分子生物科技有限公司\n"
-
-        self.agent = LLMReportGenerator(api_infos=api_infos, temperature=0.0)
-        self.oss_warpper = Oss_Warpper()
-        
-    
-    def print_usage(self) -> str:
-        return "\n".join([
-            'Report generation for general task.',
-            'Inputs: {"pipeline": pipeline for general task}',
-            'Outputs: a report for general task.'
-        ])
-    
-    async def run(self, config_file: str, num_repeats: int) -> str:
-        from open_biomed.core.workflow import Workflow
-        import subprocess
-
-        config = Config(config_file=config_file)
-        workflow = Workflow(config)
-        await workflow.run(num_repeats=num_repeats, context=open("./logs/workflow_outputs.txt", "w"), tool_outputs=open("./logs/workflow_tool_outputs.txt", "w"))
-        with open("./logs/workflow_outputs.txt", "r") as f:
-            references = f.read()
-
-        with open("./logs/workflow_tool_outputs.txt", "r") as f:
-            tool_outputs = f.read().split("\n")[:-1]
-
-        context = {
-            "ref_text": references + self.ref_infos,
-            "others":{
-                "title": self.title,
-                "structure": self.structure
-            }
-        }
-        question = ""
-
-        resp = self.agent.generate(query=question, context=context, is_debug=True)
-        
-        dir_path = f"./tmp/temp_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}"
-        os.mkdir(dir_path)
-        for file in tool_outputs:
-            file_name = os.path.basename(file)
-            dst_path = os.path.join(dir_path, file_name)
-            os.rename(file, dst_path)
-        with open(os.path.join(dir_path, "report.md"), 'w') as f:
-            f.write(resp['final_resp'])
-        
-        subprocess.run(f"zip -r {dir_path}.zip {dir_path}", shell=True, check=True)
-
-        oss_file_path = self.oss_warpper.generate_file_name(f"{dir_path}.zip")
-        self.oss_warpper.upload(oss_file_path, f"{dir_path}.zip")
-
-        return resp
+        return context
 
 
 

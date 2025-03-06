@@ -41,7 +41,8 @@ class LazyDictForTool(dict):
             self[key] = ComplexVisualizer()
         elif key == "visualize_protein_pocket":
             self[key] = ProteinPocketVisualizer()
-        elif key == "molecule_name_request":
+        # TODO: update the name mapping between frontend and backend
+        elif key == "molecule_name_request" or key == "pubchemid_search":
             self[key] = PubChemRequester(db_url="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{accession}/SDF")
         elif key == "molecule_structure_request":
             self[key] = PubChemStructureRequester()
