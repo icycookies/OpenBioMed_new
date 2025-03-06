@@ -142,9 +142,9 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
     for node in path_nodes_list:
         node_info = tool_node_filted[node]
         if 'value' in node_info.keys():
-            yaml_dict["tools"].append({"name": node, "inputs": node_info["value"]})
+            yaml_dict["tools"].append({"name": node.split("-")[0].lower(), "inputs": node_info["value"]})
         else:
-            yaml_dict["tools"].append({"name": node})
+            yaml_dict["tools"].append({"name": node.split("-")[0].lower()})
 
     for path in merge_nodes_list:
         yaml_dict["edges"].append({"start": path_nodes_list.index(path[0]), "end": path_nodes_list.index(path[1])})
