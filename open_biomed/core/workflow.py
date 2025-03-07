@@ -45,10 +45,18 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
     # just get id and description
     def get_tool_node(node):
         node_dict = {}
+        node_dict["value"] = {}
         id = node["id"]
         description = node["data"]["node"]["description"]
         node_dict["description"] = [description]
+        data_context = node["data"]["node"]["template"]
+        keys = list(data_context)
+        for key in keys:
+            if key in ["config", "molecule", "protein", "pocket", "text", "dataset", "query", "mutation", "indices", "threshold"] and data_context[key]["value"]:
+                node_dict["value"].update({key: data_context[key]["value"]})
         return node_dict
+
+
 
 
     def remove_duplicate_path(nodes):
@@ -131,7 +139,7 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
     merge_nodes_list = path_nodes + new_path_nodes
 
     # remove paths containing path_keywords
-    path_keywords = ["MergeDataComponent", "ParseData", "ChatOutput", "ChatInput", "Image Output", "PharmolixCreateData"]
+    path_keywords = ["MergeDataComponent", "ParseData", "ChatOutput", "ChatInput", "Image Output", "PharmolixCreateData", "Image output"]
     merge_nodes_list_copy = copy.deepcopy(merge_nodes_list)
     for index in range(len(merge_nodes_list_copy) - 1, -1, -1):
         # print(index)
@@ -161,7 +169,7 @@ def parse_frontend(json_string: str, output_floder: str = "tmp/workflow") -> str
     yaml_dict["edges"] = []
     for node in path_nodes_list:
         node_info = tool_node_filted[node]
-        if 'value' in node_info.keys():
+        if 'value' in node_info.keys() and node_info["value"]:
             yaml_dict["tools"].append({"name": node.split("-")[0].lower(), "inputs": node_info["value"]})
         else:
             yaml_dict["tools"].append({"name": node.split("-")[0].lower()})
@@ -322,5 +330,5 @@ if __name__ == "__main__":
     with open(file_path, "r") as f:
         json_data = json.load(f)
     json_string = json.dumps(json_data, ensure_ascii=False, indent=4)
-    fronted_file = parse_frontend(json_string)
+    fronted_file = parse_frontend(json_data)
     """
