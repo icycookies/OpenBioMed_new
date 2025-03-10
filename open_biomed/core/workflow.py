@@ -336,5 +336,5 @@ if __name__ == "__main__":
     with open(file_path, "r") as f:
         json_data = json.load(f)
     json_string = json.dumps(json_data, ensure_ascii=False, indent=4)
-    fronted_file = parse_frontend(json_string)
+    fronted_file = parse_frontend(json_data)
     """
